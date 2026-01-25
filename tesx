@@ -1,0 +1,217 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+import React from 'react';
+import {
+    Dimensions,
+    FlatList,
+    ImageBackground,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import imgOne from '../../../assets/images/onboarding/img-one.jpeg';
+import imgTwo from '../../../assets/images/onboarding/img-two.jpeg';
+import imgThree from '../../../assets/images/onboarding/img-three.jpeg';
+
+const { width } = Dimensions.get('window');
+
+interface QuoteCard {
+  id: string;
+  title: string;
+  quote: string;
+  color: string;
+}
+
+interface Event {
+  id: string;
+  title: string;
+  subtitle: string;
+  date: string;
+  image: any;
+}
+
+const quotesOfTheDay: QuoteCard[] = [
+  {
+    id: '1',
+    title: 'QUOTES OF THE DAY',
+    quote: 'For Peace to be real must be unaffected by outside circumstances.',
+    color: '#FFF4E6',
+  },
+  {
+    id: '2',
+    title: 'QUOTE OF WISDOM',
+    quote: 'The key to happiness is to love what you do and do what you love.',
+    color: '#FFE4E1',
+  },
+];
+
+const upcomingEvents: Event[] = [
+  {
+    id: '1',
+    title: 'BHAKTHI MANDIR',
+    subtitle: 'Sacred Rituals',
+    date: '15/06/2024',
+    image: imgOne,
+  },
+  {
+    id: '2',
+    title: 'DEVOTION HALL',
+    subtitle: 'Meditation Session',
+    date: '20/06/2024',
+    image: imgTwo,
+  },
+];
+
+export default function HomeScreen() {
+  const [currentQuoteIndex, setCurrentQuoteIndex] = React.useState(0);
+
+  return (
+    <View className="flex-1 bg-slate-900">
+      <StatusBar style="light" />
+      
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View className="px-6 pt-14 pb-6">
+          <View className="flex-row items-center justify-between mb-6">
+            <View>
+              <Text className="text-white/70 text-sm">Welcome, Seeker!</Text>
+              <Text className="text-white text-2xl font-bold mt-1">Ganesh Prasenth...</Text>
+            </View>
+            <TouchableOpacity className="w-12 h-12 rounded-full bg-slate-800 items-center justify-center">
+              <Ionicons name="menu" size={24} color="white" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Quotes Carousel */}
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            className="mb-6"
+            onScroll={(e) => {
+              const index = Math.round(e.nativeEvent.contentOffset.x / (width - 48));
+              setCurrentQuoteIndex(index);
+            }}
+            scrollEventThrottle={16}
+          >
+            {quotesOfTheDay.map((quote, index) => (
+              <View
+                key={quote.id}
+                style={{ width: width - 48 }}
+                className="mr-4"
+              >
+                <View
+                  style={{ backgroundColor: quote.color }}
+                  className="rounded-3xl p-6 relative overflow-hidden"
+                >
+                  {/* Decorative background pattern */}
+                  <View className="absolute bottom-0 right-0 w-32 h-32 opacity-20">
+                    <Ionicons name="flower" size={128} color="#F97316" />
+                  </View>
+                  
+                  <Text className="text-slate-600 text-xs font-semibold mb-3">
+                    {quote.title}
+                  </Text>
+                  <Text className="text-slate-900 text-lg font-bold leading-6">
+                    {quote.quote}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Quote Indicators */}
+          <View className="flex-row items-center justify-center mb-6">
+            {quotesOfTheDay.map((_, index) => (
+              <View
+                key={index}
+                className={`h-2 rounded-full mx-1 ${
+                  index === currentQuoteIndex ? 'w-6 bg-orange-400' : 'w-2 bg-slate-700'
+                }`}
+              />
+            ))}
+          </View>
+
+          {/* Search Bar */}
+          <View className="bg-slate-800 rounded-2xl px-4 py-3 flex-row items-center mb-6">
+            <Ionicons name="search" size={20} color="#9CA3AF" />
+            <TextInput
+              placeholder="search for a spiritual topic"
+              placeholderTextColor="#9CA3AF"
+              className="flex-1 ml-3 text-white text-base"
+            />
+          </View>
+        </View>
+
+        {/* Upcoming Events */}
+        <View className="px-6 mb-6">
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-white text-xl font-bold">Upcoming Events</Text>
+            <TouchableOpacity>
+              <Text className="text-orange-400 text-sm font-semibold">See all</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList 
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={upcomingEvents}
+            keyExtractor={(item) => item.id}
+            contentContainerClassName='mb-6'
+            renderItem={({ item }) => (
+              <TouchableOpacity   className="mr-4 w-44" activeOpacity={0.8} >
+                <ImageBackground source={item.image}  className="w-44 h-32 rounded-2xl overflow-hidden mb-3" imageStyle={{ borderRadius: 16 }} >
+                  <View className="absolute bottom-0 right-0 left-0 rounded-full p-2">
+                    <LinearGradient  colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']} className="px-3 py-1 rounded-full self-start">
+                      <Text className="text-white text-xs font-semibold">{item.title}</Text>
+                    </LinearGradient>
+                    {/* <Text className="text-white text-xs font-semibold">{item.title}</Text> */}
+                  </View>
+                </ImageBackground>
+                <Text className="text-white font-semibold text-sm mb-1">{item.subtitle}</Text>
+                <Text className="text-slate-400 text-xs">{item.date}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+
+        {/* Message from CEO */}
+        <View className="px-6 mb-8">
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-white text-xl font-bold">Message from CEO</Text>
+            <TouchableOpacity>
+              <Text className="text-orange-400 text-sm font-semibold">See all</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            className="bg-slate-800 rounded-2xl overflow-hidden"
+            activeOpacity={0.8}
+          >
+            <ImageBackground
+              source={imgThree}
+              className="w-full h-40"
+              resizeMode="cover"
+            >
+              <View className="absolute bottom-0 right-0 left-0 rounded-full p-2">
+                    <LinearGradient  colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']} className="px-3 py-1 rounded-full self-start">
+                <Text className="text-white text-base font-bold">
+                  Weekly Inspiration & Guidance
+                </Text>
+                <Text className="text-white/80 text-xs mt-1">
+                  A message of hope and direction
+                </Text>
+              </LinearGradient>
+              </View>
+            </ImageBackground>
+          </TouchableOpacity>
+        </View>
+
+        {/* Bottom Spacing for Tab Bar */}
+        <View className="h-20" />
+      </ScrollView>
+    </View>
+  );
+}
