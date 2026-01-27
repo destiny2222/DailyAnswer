@@ -19,3 +19,14 @@ export const updateUserProfile = async (profileData: {
   });
   return response;
 };
+export const changePassword = async (passwordData: {
+  current_password: string;
+  new_password: string;
+  new_password_confirmation: string;
+}) => {
+  const response = await apiRequest("/profile/change-password", {
+    method: "POST",
+    body: passwordData,
+  });
+  return response;
+};

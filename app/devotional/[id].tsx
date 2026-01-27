@@ -62,11 +62,29 @@ const DevotionalDetail = () => {
       .replace(/&nbsp;/g, ' ')
       .trim();
 
+  const formatContent = (html: string) => {
+    if (!html) return '';
+    
+    // Replace closing paragraph tags with double newlines to preserve paragraph breaks
+    let formatted = html
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .trim();
+    
+    return formatted;
+  };
+
   const handleShare = async () => {
     if (!devotional) return;
     try {
       await Share.share({
-        message: `${devotional.title}\n\n${stripHtml(devotional.content)}\n\n${devotional.key_verse}`,
+        message: `${devotional.title}\n\n${formatContent(devotional.content)}\n\n${devotional.key_verse}`,
       });
     } catch (error) {
       // console.error('Error sharing:', error);
@@ -80,7 +98,8 @@ const DevotionalDetail = () => {
     } else {
       if (!devotional) return;
       
-      const textToSpeak = `${devotional.title}. ${stripHtml(devotional.content)}`;
+      const textToSpeak = `${devotional.title}. Key Verse: ${devotional.key_verse}. 
+      ${formatContent(devotional.content)}. ${devotional.application_note}. Memory Verse: ${devotional.verse}. Prayer note: ${devotional.prayer_note}.`;
       
       setIsSpeaking(true);
       Speech.speak(textToSpeak, {
@@ -150,6 +169,7 @@ const DevotionalDetail = () => {
         {/* Content */}
         <View className="bg-white rounded-t-3xl -mt-6 pt-6 px-6">
           {/* Date */}
+          <Text className='text-lg font-rubik-medium font-medium'>{devotional.subheading}</Text>
           <View className="flex-row items-center mb-4">
             <Ionicons name="calendar-outline" size={16} color="#666" />
             <Text className="text-gray-600 text-sm ml-2">
@@ -158,7 +178,7 @@ const DevotionalDetail = () => {
           </View>
 
           {/* Title */}
-          <Text className="text-3xl font-rubik-semibold  text-gray-900 mb-4">
+          <Text className="text-3xl font-rubik-semibold py-5 text-gray-900 mb-4">
             {devotional.title}
           </Text>
 
@@ -191,11 +211,41 @@ const DevotionalDetail = () => {
 
           {/* Main Content */}
           <View className="mb-8">
-            <Text style={{  fontSize, fontWeight: isBold ? 'bold' : 'normal',
-                lineHeight: fontSize * 1.5,  color: '#1F2937', textAlign: 'center' }}
+            <Text 
+              style={{  
+                fontSize, 
+                fontWeight: isBold ? 'bold' : 'normal',
+                lineHeight: fontSize * 1.4,
+                color: '#1F2937', 
+                textAlign: 'justify' 
+              }}
               className="font-rubik-medium"
             >
-              {stripHtml(devotional.content)}
+              {formatContent(devotional.content)}
+            </Text>
+          </View>
+          <View className="bg-blue-50 rounded-xl p-4 mb-6">
+            <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
+              {formatContent(devotional.application_note)}
+            </Text>
+          </View>
+          {/* Related Verses */}
+          {devotional.verses && (
+            <View className="bg-blue-50 rounded-xl p-4 mb-6">
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="book-outline" size={18} color="#3B82F6" />
+                <Text className="text-sm font-bold text-blue-700 ml-2">
+                  Scripture References
+                </Text>
+              </View>
+              <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
+                {formatContent(devotional.verses)}
+              </Text>
+            </View>
+          )}
+          <View className="bg-blue-50 rounded-xl p-4 mb-6">
+            <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
+              {formatContent(devotional.prayer_note)}
             </Text>
           </View>
           {/* Action Buttons */}
@@ -229,20 +279,7 @@ const DevotionalDetail = () => {
               </Text>
             )}
           </View>
-          {/* Related Verses */}
-          {devotional.verses && (
-            <View className="bg-blue-50 rounded-xl p-4 mb-6">
-              <View className="flex-row items-center mb-2">
-                <Ionicons name="book-outline" size={18} color="#3B82F6" />
-                <Text className="text-sm font-bold text-blue-700 ml-2">
-                  Scripture References
-                </Text>
-              </View>
-              <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
-                {devotional.verses}
-              </Text>
-            </View>
-          )}
+          
         </View>
       </ScrollView>
 

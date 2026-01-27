@@ -100,6 +100,18 @@ export default function TabLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="ManageSupport"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="changedPassword"
+        options={{
+          href: null,
+        }}
+      />
       {/* <Tabs.Screen
         name="more"
         options={{

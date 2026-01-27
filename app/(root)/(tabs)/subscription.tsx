@@ -17,6 +17,7 @@ import logoImage from "@/assets/images/logo.jpeg";
 import { useGlobalContext } from "@/utils/auth";
 import { createSubscription, getSubscriptionPlans, Plan, confirmPayment } from "@/libs/payment";
 import Toast from "react-native-toast-message";
+import CustomAlert from "@/components/CustomAlert";
 
 const Subscription = () => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
@@ -27,20 +28,32 @@ const Subscription = () => {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [alertVisible, setAlertVisible] = useState(false);
+    const [alertConfig, setAlertConfig] = useState({
+      title: "",
+      message: "",
+      type: "success" as "success" | "error",
+    });
 
   useEffect(() => {
     const fetchPlans = async () => {
       try {
         setLoading(true);
         const availablePlans = await getSubscriptionPlans();
+        console.log("Fetched plans:", availablePlans);
         setPlans(availablePlans);
         if (availablePlans.length > 0) {
-          // default to yearly_60
-          const defaultPlan = availablePlans.find(p => p.id === 'yearly_60') || availablePlans[0];
+          // default to plan_standard_quarterly
+          const defaultPlan = availablePlans.find(p => p.plan_id === 'plan_standard_quarterly') || availablePlans[0];
           setSelectedPlan(defaultPlan.id);
         }
       } catch (e) {
-        setError("Failed to load subscription plans.");
+        setAlertConfig({
+          title: "Error",
+          message: "Failed to load subscription plans.",
+          type: "error",
+        });
+        setAlertVisible(true);
       } finally {
         setLoading(false);
       }
@@ -54,7 +67,13 @@ const Subscription = () => {
 
   const handleSubscribe = async () => {
     if (!selectedPlan) {
-      Alert.alert("No Plan Selected", "Please select a subscription plan.");
+      setAlertConfig({
+        title: "No Plan Selected",
+        message: "Please select a subscription plan.",
+        type: "error",
+      });
+      setAlertVisible(true);
+      //
       return;
     }
 
@@ -70,7 +89,12 @@ const Subscription = () => {
       });
 
       if (initError) {
-        Alert.alert("Error", "Failed to initialize payment sheet.");
+        setAlertConfig({
+          title: "Error",
+          message: "Failed to initialize payment sheet.",
+          type: "error",
+        });
+        setAlertVisible(true);
         setIsSubscribing(false);
         return;
       }
@@ -79,7 +103,12 @@ const Subscription = () => {
 
       if (presentError) {
         if (presentError.code !== 'Canceled') {
-          Alert.alert("Payment Error", presentError.message);
+          setAlertConfig({
+            title: "Payment Error",
+            message: presentError.message,
+            type: "error",
+          });
+          setAlertVisible(true);
         }
       } else {
         // Extract paymentIntentId from clientSecret
@@ -90,18 +119,34 @@ const Subscription = () => {
 
         if (confirmation.success) {
           setHasPaid(true);
-          Toast.show({
-            type: 'success',
-            text1: 'Subscription Successful!',
-            text2: 'Welcome to premium access.',
+          
+          // Show success alert
+          setAlertConfig({
+            title: "Payment Successful! 🎉",
+            message: "Your subscription is now active. Enjoy full access to all premium features!",
+            type: "success",
           });
-          router.replace('/(root)/(tabs)');
+          setAlertVisible(true);
+          // Redirect after a brief delay to allow user to see the success message
+          setTimeout(() => {
+            router.replace('/(root)/(tabs)');
+          }, 2000);
         } else {
-          Alert.alert("Confirmation Failed", confirmation.message || "Could not activate your subscription.");
+          setAlertConfig({
+            title: "Confirmation Failed",
+            message: confirmation.message || "Could not activate your subscription.",
+            type: "error",
+          });
+          setAlertVisible(true);
         }
       }
     } catch (e: any) {
-      Alert.alert("Subscription Error", e.message || "An unexpected error occurred.");
+      setAlertConfig({
+        title: "Subscription Error",
+        message: e.message || "An unexpected error occurred.",
+        type: "error",
+      });
+      setAlertVisible(true);
     } finally {
       setIsSubscribing(false);
     }
@@ -112,7 +157,12 @@ const Subscription = () => {
     setError(null);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    setError("No subscription products found. Verify product IDs in your developer console.");
+    setAlertConfig({
+      title: "Restoration Complete",
+      message: "Your purchases have been restored successfully.",
+      type: "error"
+    });
+    setAlertVisible(true);
     setIsRestoring(false);
   };
 
@@ -244,7 +294,13 @@ const Subscription = () => {
           </Text>
         </View>
       </ScrollView>
-      <Toast />
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onClose={() => setAlertVisible(false)}
+      />
     </SafeAreaView>
   );
 };

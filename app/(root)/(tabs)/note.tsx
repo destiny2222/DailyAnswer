@@ -74,7 +74,7 @@ const NotesScreen = () => {
 
   const renderNoteItem = ({ item }: { item: Note }) => (
     <TouchableOpacity
-      className="bg-gray-700 p-4 rounded-lg shadow-sm mb-4 border border-gray-700"
+      className="bg-gray-800 p-4 rounded-lg shadow-sm mb-4 border border-gray-700"
       onPress={() => router.push(`/note/${item.id}`)}
     >
       <Text className="text-lg font-bold text-gray-100 mb-1">{item.title}</Text>
@@ -97,7 +97,7 @@ const NotesScreen = () => {
                 <Text className="text-2xl font-bold text-gray-200">Notes</Text>
             </TouchableOpacity>
         </View>
-        <View className="flex-row items-center bg-gray-800 rounded-full px-4 py-3 shadow-sm border border-gray-700">
+        <View className="flex-row items-center bg-gray-800 rounded-full px-4 py-3 shadow-sm border border-gray-800">
           <Ionicons name="search" size={20} color="#999" />
           <TextInput 
             className="flex-1 ml-3 text-base text-gray-200"
@@ -110,7 +110,7 @@ const NotesScreen = () => {
       </View>
 
       {loading ? (
-        <View className="flex-1 items-center justify-center">
+        <View className="flex-1 items-center justify-center bg-gray-900">
           <ActivityIndicator size="large" color="#E94B7B" />
         </View>
       ) : (
@@ -120,7 +120,7 @@ const NotesScreen = () => {
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
           ListEmptyComponent={
-            <View className="flex-1 items-center justify-center mt-20">
+            <View className="flex-1 items-center justify-center mt-20 bg-gray-900">
               <Ionicons name="document-text-outline" size={64} color="#666" />
               <Text className="text-gray-500 mt-4 text-lg">No notes yet</Text>
               <Text className="text-gray-400 mt-1">Tap the '+' button to create one.</Text>

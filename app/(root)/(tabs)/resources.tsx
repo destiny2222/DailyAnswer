@@ -29,6 +29,30 @@ interface DevotionCardProps {
   onPress?: (item: DevotionItem) => void;
 }
 
+const stripHtml = (html: string) =>
+    html
+      ?.replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .trim();
+
+  const formatContent = (html: string) => {
+    if (!html) return '';
+    
+    // Replace closing paragraph tags with double newlines to preserve paragraph breaks
+    let formatted = html
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .trim();
+    
+    return formatted;
+  };
+
 export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
   const formatDate = (date: Date | string) => {
     const options: Intl.DateTimeFormatOptions = {
@@ -59,7 +83,7 @@ export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
           {item.title}
         </Text>
         <Text className="text-gray-300 text-sm leading-6">
-          {item.content.slice(0, 150)}...
+          {formatContent(item.content.slice(0, 150))}...
         </Text>
       </View>
     </TouchableOpacity>
@@ -81,7 +105,7 @@ export default function ResourcesScreen() {
         const data = await fetchDevotionals();
         setDevotionals(data);
       } catch (e) {
-        console.log("Failed to load devotionals:", e);
+        // console.log("Failed to load devotionals:", e);
       } finally {
         setIsLoading(false);
       }
@@ -103,6 +127,10 @@ export default function ResourcesScreen() {
       router.push(`/devotional/${devotion.id}`);
     }
   };
+
+
+  
+
 
   return (
     <SafeAreaView className="bg-gray-900   h-screen">

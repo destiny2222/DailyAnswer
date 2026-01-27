@@ -171,7 +171,10 @@ const Login = () => {
             </View>
 
             {/* Forgot Password */}
-            <TouchableOpacity className="self-end mb-6">
+            <TouchableOpacity
+              className="self-end mb-6"
+              onPress={() => router.push('/(auth)/forgotPassword')}
+            >
               <Text className="text-[#E94B7B] text-sm font-semibold">
                 Forgot Password?
               </Text>
@@ -192,20 +195,20 @@ const Login = () => {
             </TouchableOpacity>
 
             {/* Divider */}
-            <View className="flex-row items-center mb-6">
+            {/* <View className="flex-row items-center mb-6">
               <View className="flex-1 h-px bg-slate-700" />
               <Text className="text-white/40 text-sm px-4">
                 or continue with
               </Text>
               <View className="flex-1 h-px bg-slate-700" />
-            </View>
+            </View> */}
 
             {/* Social Login Buttons */}
-            <View className="flex-row justify-center gap-4 mb-6">
+            {/* <View className="flex-row justify-center gap-4 mb-6">
               <TouchableOpacity className="w-16 h-16 rounded-2xl bg-slate-800 items-center justify-center">
                 <Ionicons name="logo-google" size={24} color="#fff" />
               </TouchableOpacity>
-            </View>
+            </View> */}
 
             {/* Sign Up Link */}
             <View className="flex-row items-center justify-center pb-8">

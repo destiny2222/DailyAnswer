@@ -1,202 +1,376 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { useStripe } from "@stripe/stripe-react-native";
+import { Stack, router } from "expo-router";
+import React, { useState } from "react";
 import {
-    Image,
-    Modal,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import icons from '../../../constants/icons';
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import logoImage from "@/assets/images/logo.jpeg";
+import CustomAlert from "@/components/CustomAlert";
+import { createSupport, confirmPayment, confirmRecurringSupport } from "@/libs/payment";
 
-const SupportItem = ({ icon, title, onPress }) => (
-  <TouchableOpacity
-    onPress={onPress}
-    className="flex-row items-center justify-between bg-slate-800 p-4 rounded-lg mb-4"
-  >
-    <View className="flex-row items-center">
-      <Image source={icon} className="w-6 h-6 mr-4" resizeMode="contain" style={{ tintColor: '#FF6B6B' }}/>
-      <Text className="text-lg font-semibold text-white">{title}</Text>
-    </View>
-    <Ionicons name="chevron-forward" size={24} color="#C7C7CC" />
-  </TouchableOpacity>
-);
+const Support = () => {
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const [amount, setAmount] = useState("");
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({
+    title: "",
+    message: "",
+    type: "success" as "success" | "error",
+  });
 
-const EmailSupportModal = ({ visible, onClose }) => (
-  <Modal visible={visible} transparent animationType="slide"  onRequestClose={onClose}>
-    <TouchableOpacity className="flex-1 justify-end bg-black/50" activeOpacity={1} onPressOut={onClose}>
-      <View className="bg-slate-800 rounded-t-2xl p-6">
-        <View className="items-center mb-6">
-          <View className="w-12 h-1.5 bg-gray-500 rounded-full" />
-        </View>
-        <Text className="text-2xl font-bold text-center mb-4 text-white">Email Support</Text>
-        
-        <Text className="text-lg font-semibold mb-2 text-white">Contact Us</Text>
-        <Text className="text-base text-gray-300 mb-4">
-          If you need assistance or have any questions, please feel free to contact our support team. We are here to help!
-        </Text>
+  const predefinedAmounts = [5, 10, 25, 50, 100];
 
-        <Text className="text-lg font-semibold mb-2 text-white">Email Us</Text>
-        <View className="mb-4">
-          <Text className="text-base text-gray-300 mb-1">
-            - For Support: <Text className="text-blue-400">support@thedailyanswer.org</Text>
-          </Text>
-          <Text className="text-base text-gray-300 mb-1">
-            - For Feedback: <Text className="text-blue-400">feedback@thedailyanswer.org</Text>
-          </Text>
-          <Text className="text-base text-gray-300">
-            - For Business Inquiries: <Text className="text-blue-400">business@thedailyanswer.org</Text>
-          </Text>
-        </View>
+  const handleAmountSelect = (value: number) => {
+    setAmount(value.toString());
+  };
 
-        <Text className="text-lg font-semibold mb-2 text-white">What to Include in Your Email</Text>
-        <Text className="text-base text-gray-300 mb-2">
-          Your Name and Contact Information
-        </Text>
-        <Text className="text-base text-gray-300 mb-2">
-          A detailed description of your issue or feedback
-        </Text>
-        <Text className="text-base text-gray-300">
-          Screenshots or other relevant attachments (if applicable)
-        </Text>
-      </View>
-    </TouchableOpacity>
-  </Modal>
-);
+  
+  const handleSupport = async () => {
+  const parsedAmount = parseFloat(amount);
 
-const TermsOfServiceModal = ({ visible, onClose }) => (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity className="flex-1 justify-end bg-black/50" activeOpacity={1} onPressOut={onClose}>
-        <View className="bg-slate-800 rounded-t-2xl p-6 max-h-[80vh]">
-          <View className="items-center mb-6">
-            <View className="w-12 h-1.5 bg-gray-500 rounded-full" />
-          </View>
-          <Text className="text-2xl font-bold text-center mb-4 text-white">Terms of Service</Text>
-          <ScrollView>
-            <Text className="text-lg font-semibold mb-2 text-white">Introduction</Text>
-            <Text className="text-base text-gray-300 mb-4">
-              Welcome to The Daily Answer Devotional! By accessing our app, you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, please do not use our app.
-            </Text>
-  
-            <Text className="text-lg font-semibold mb-2 text-white">Eligibility</Text>
-            <Text className="text-base text-gray-300 mb-4">
-              You must be at least 13 years old to use our app. By agreeing to these Terms, you represent and warrant that you meet the minimum age requirement.
-            </Text>
-  
-            <Text className="text-lg font-semibold mb-2 text-white">Account Registration</Text>
-            <Text className="text-base text-gray-300 mb-4">
-              To access certain features of the app, you may need to create an account. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.
-            </Text>
-  
-            <Text className="text-lg font-semibold mb-2 text-white">User Conduct</Text>
-            <Text className="text-base text-gray-300 mb-4">
-              You are solely responsible for your conduct while using our app and for any data, text, information, usernames, graphics, images, photographs, profiles, audio, video, items, and links (collectively, "Content") that you submit, post, and display on our app.
-            </Text>
-  
-            <Text className="text-lg font-semibold mb-2 text-white">Prohibited Activities</Text>
-            <Text className="text-base text-gray-300 mb-4">
-              You agree not to engage in the following prohibited activities: illegal or unauthorized use of our app, including collecting usernames and/or email addresses of users by electronic or other means for the purpose of sending unsolicited email. Divesting user accounts by automated means or under false pretenses. Transmitting any worms or viruses or any code of a destructive nature.
-            </Text>
-          </ScrollView>
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  );
-  
-  const PrivacyPolicyModal = ({ visible, onClose }) => (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity className="flex-1 justify-end bg-black/50" activeOpacity={1} onPressOut={onClose}>
-        <View className="bg-slate-800 rounded-t-2xl p-6 max-h-[80vh]">
-          <View className="items-center mb-6">
-            <View className="w-12 h-1.5 bg-gray-500 rounded-full" />
-          </View>
-          <Text className="text-2xl font-bold text-center mb-4 text-white">Privacy Policy</Text>
-          <ScrollView>
-            <Text className="text-lg font-semibold mb-2 text-white">Introduction</Text>
-            <Text className="text-base text-gray-300 mb-4">
-              Welcome to The Daily Answer Devotional! Your privacy is important to us. This Policy explains how we collect, use, disclose, and safeguard your information when you visit our mobile application. Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the app.
-            </Text>
-  
-            <Text className="text-lg font-semibold mb-2 text-white">Information Collection and Use</Text>
-            <Text className="text-base text-gray-300 mb-4">
-              Personal Data: We collect personal data that you voluntarily provide to us when registering at the app, expressing an interest in obtaining information about us or our products and services, when participating in activities on the app or otherwise contacting us. The personal data we collect may include your name, email address, phone number, and other contact details.
-            </Text>
-  
-            <Text className="text-base text-gray-300 mb-4">
-              Usage Data: When you access the app, we may also collect certain information automatically, including, but not limited to, the type of mobile device you use, your mobile device's unique ID, the IP address of your mobile device, your mobile operating system, the type of mobile Internet browser you use, unique device identifiers and other diagnostic data.
-            </Text>
-  
-            <Text className="text-base text-gray-300 mb-4">
-              Location Information: We may request access or permission to and track location-based information from your mobile device, either continuously or while you are using our mobile application, to provide location-based services.
-            </Text>
-  
-            <Text className="text-lg font-semibold mb-2 text-white">Cookies and Tracking Technologies</Text>
-            <Text className="text-base text-gray-300 mb-4">
-              We use cookies and similar tracking technologies to track the activity on our app and hold certain information. Tracking technologies used are beacons, tags, and scripts to collect and track information and to improve and analyze our app.
-            </Text>
-  
-            <Text className="text-lg font-semibold mb-2 text-white">Third-Party Service Providers</Text>
-          </ScrollView>
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  );
+  if (!amount || parsedAmount < 1) {
+    setAlertConfig({
+      title: "Invalid Amount",
+      message: "Please enter an amount of at least $1.",
+      type: "error",
+    });
+    setAlertVisible(true);
+    return;
+  }
 
-const SupportScreen = () => {
-  const router = useRouter();
-  const [isEmailModalVisible, setEmailModalVisible] = useState(false);
-  const [isTermsModalVisible, setTermsModalVisible] = useState(false);
-  const [isPrivacyModalVisible, setPrivacyModalVisible] = useState(false);
+  setIsProcessing(true);
+  try {
+    const response = await createSupport(
+      parsedAmount,
+      isRecurring,
+      isRecurring ? interval : undefined
+    );
 
+    const { clientSecret, customerId, type, priceId, setupIntentId } = response;
+
+    if (isRecurring) {
+      // For recurring payments, use setupIntentClientSecret
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: "The Daily Answer",
+        customerId: customerId,
+        setupIntentClientSecret: clientSecret,
+        allowsDelayedPaymentMethods: false,
+      });
+
+      if (initError) {
+        setAlertConfig({
+          title: "Error",
+          message: "Failed to initialize payment sheet.",
+          type: "error",
+        });
+        setAlertVisible(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      const { error: presentError } = await presentPaymentSheet();
+
+      if (presentError) {
+        if (presentError.code !== "Canceled") {
+          setAlertConfig({
+            title: "Payment Error",
+            message: presentError.message,
+            type: "error",
+          });
+          setAlertVisible(true);
+        }
+        setIsProcessing(false);
+        return;
+      }
+
+      // After successful payment method collection, create the subscription
+      const confirmation = await confirmRecurringSupport(setupIntentId, priceId);
+
+      if (confirmation.success) {
+        setAlertConfig({
+          title: "Thank You! 🎉",
+          message: `Your recurring support of $${parsedAmount.toFixed(2)} has been set up successfully. We truly appreciate your generosity!`,
+          type: "success",
+        });
+        setAlertVisible(true);
+
+        // Reset form
+        setAmount("");
+        setIsRecurring(false);
+
+      } else {
+        setAlertConfig({
+          title: "Confirmation Failed",
+          message: confirmation.message || "Could not set up recurring support.",
+          type: "error",
+        });
+        setAlertVisible(true);
+      }
+    } else {
+      // For one-time payments
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: "The Daily Answer",
+        customerId: customerId,
+        paymentIntentClientSecret: clientSecret,
+        allowsDelayedPaymentMethods: true,
+      });
+
+      if (initError) {
+        setAlertConfig({
+          title: "Error",
+          message: "Failed to initialize payment sheet.",
+          type: "error",
+        });
+        setAlertVisible(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      const { error: presentError } = await presentPaymentSheet();
+
+      if (presentError) {
+        if (presentError.code !== "Canceled") {
+          setAlertConfig({
+            title: "Payment Error",
+            message: presentError.message,
+            type: "error",
+          });
+          setAlertVisible(true);
+        }
+        setIsProcessing(false);
+        return;
+      }
+
+      const paymentIntentId = clientSecret.split("_secret")[0];
+      const confirmation = await confirmPayment(paymentIntentId);
+
+      if (confirmation.success) {
+        setAlertConfig({
+          title: "Thank You! 🎉",
+          message: `Your one-time support of $${parsedAmount.toFixed(2)} has been processed successfully. We truly appreciate your generosity!`,
+          type: "success",
+        });
+        setAlertVisible(true);
+
+        // Reset form
+        setAmount("");
+
+        // Navigate back after a delay
+        setTimeout(() => {
+          router.back();
+        }, 2500);
+      } else {
+        setAlertConfig({
+          title: "Confirmation Failed",
+          message: confirmation.message || "Could not process your support payment.",
+          type: "error",
+        });
+        setAlertVisible(true);
+      }
+    }
+  } catch (e: any) {
+    setAlertConfig({
+      title: "Payment Error",
+      message: e.message || "An unexpected error occurred.",
+      type: "error",
+    });
+    setAlertVisible(true);
+  } finally {
+    setIsProcessing(false);
+  }
+};
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
-      <View className="flex-row items-center px-4 py-3 border-b border-gray-700">
-        <TouchableOpacity onPress={() => router.back()} className="p-2">
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text className="text-xl font-bold text-center flex-1 text-white">Support</Text>
-        <View className="w-10" />
-      </View>
+      <Stack.Screen
+        options={{
+          headerTitle: "Support Us",
+          headerBackTitle: "Back",
+          headerStyle: { backgroundColor: "#1E293B" },
+          headerTintColor: "#fff",
+          headerTitleStyle: { color: "#fff" },
+        }}
+      />
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        <View className="items-center px-6 py-8">
+          <Image source={logoImage} className="w-24 h-24 rounded-full mb-6" />
+          <Text className="text-white text-2xl font-bold text-center mb-3">
+            Support Our Mission
+          </Text>
+          <Text className="text-slate-400 text-base text-center mb-8">
+            Your generous support helps us continue providing quality devotional
+            content to people around the world.
+          </Text>
 
-      <ScrollView contentContainerStyle={{ padding: 24 }}>
-        <Text className="text-base text-gray-300 mb-8 leading-6">
-          Dear users! We hope you like this app. But if you have any problems, questions, or just want to encourage us, we would love to hear from you. Any review about the app!
-        </Text>
+          {/* Why Support Section */}
+          <View className="w-full mb-8">
+            <Text className="text-white text-lg font-semibold mb-4">
+              Why Your Support Matters:
+            </Text>
+            <View className="flex-row items-center mb-3">
+              <Ionicons name="heart" size={24} color="#E94B7B" />
+              <Text className="text-slate-300 text-base ml-3">
+                Help us reach more people with daily devotionals
+              </Text>
+            </View>
+            <View className="flex-row items-center mb-3">
+              <Ionicons name="create" size={24} color="#E94B7B" />
+              <Text className="text-slate-300 text-base ml-3">
+                Support quality content creation
+              </Text>
+            </View>
+            <View className="flex-row items-center mb-3">
+              <Ionicons name="globe" size={24} color="#E94B7B" />
+              <Text className="text-slate-300 text-base ml-3">
+                Keep the app free for those who need it
+              </Text>
+            </View>
+          </View>
 
-        <SupportItem
-          icon={icons.message}
-          title="Email Support"
-          onPress={() => setEmailModalVisible(true)}
-        />
-        <SupportItem
-          icon={icons.lock}
-          title="Terms of Service"
-          onPress={() => setTermsModalVisible(true)}
-        />
-        <SupportItem
-          icon={icons.privacy}
-          title="Privacy Policy"
-          onPress={() => setPrivacyModalVisible(true)}
-        />
+          {/* Predefined Amounts */}
+          <View className="w-full mb-6">
+            <Text className="text-white text-lg font-semibold mb-3">
+              Quick Select:
+            </Text>
+            <View className="flex-row flex-wrap justify-between">
+              {predefinedAmounts.map((value) => (
+                <TouchableOpacity
+                  key={value}
+                  onPress={() => handleAmountSelect(value)}
+                  className={`w-[30%] border-2 rounded-xl p-3 mb-3 items-center ${
+                    amount === value.toString()
+                      ? "border-pink-500 bg-pink-500/10"
+                      : "border-slate-700"
+                  }`}
+                >
+                  <Text className="text-white text-lg font-bold">
+                    ${value}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Custom Amount Input */}
+          <View className="w-full mb-6">
+            <Text className="text-white text-lg font-semibold mb-3">
+              Or Enter Custom Amount:
+            </Text>
+            <View className="flex-row items-center bg-slate-800 rounded-xl px-4 py-3 border-2 border-slate-700">
+              <Text className="text-white text-2xl mr-2">$</Text>
+              <TextInput
+                className="flex-1 text-white text-lg"
+                placeholder="0.00"
+                placeholderTextColor="#64748B"
+                keyboardType="decimal-pad"
+                value={amount}
+                onChangeText={setAmount}
+              />
+            </View>
+          </View>
+
+          {/* Recurring Option */}
+          <View className="w-full mb-6">
+            <TouchableOpacity
+              onPress={() => setIsRecurring(!isRecurring)}
+              className="flex-row items-center bg-slate-800 rounded-xl p-4 border-2 border-slate-700"
+            >
+              <View
+                className={`w-6 h-6 rounded-md mr-3 items-center justify-center ${
+                  isRecurring ? "bg-pink-500" : "bg-slate-700"
+                }`}
+              >
+                {isRecurring && (
+                  <Ionicons name="checkmark" size={18} color="white" />
+                )}
+              </View>
+              <Text className="text-white text-base flex-1">
+                Make this recurring
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Interval Selection */}
+          {isRecurring && (
+            <View className="w-full mb-6">
+              <Text className="text-white text-lg font-semibold mb-3">
+                Frequency:
+              </Text>
+              <View className="flex-row justify-between">
+                <TouchableOpacity
+                  onPress={() => setInterval("monthly")}
+                  className={`flex-1 mr-2 border-2 rounded-xl p-4 items-center ${
+                    interval === "monthly"
+                      ? "border-pink-500 bg-pink-500/10"
+                      : "border-slate-700"
+                  }`}
+                >
+                  <Text className="text-white text-base font-semibold">
+                    Monthly
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setInterval("yearly")}
+                  className={`flex-1 ml-2 border-2 rounded-xl p-4 items-center ${
+                    interval === "yearly"
+                      ? "border-pink-500 bg-pink-500/10"
+                      : "border-slate-700"
+                  }`}
+                >
+                  <Text className="text-white text-base font-semibold">
+                    Yearly
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Support Button */}
+          <TouchableOpacity
+            onPress={handleSupport}
+            disabled={isProcessing || !amount}
+            className={`w-full py-4 rounded-xl items-center justify-center mb-6 ${
+              isProcessing || !amount ? "bg-pink-600/50" : "bg-pink-600"
+            }`}
+          >
+            {isProcessing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-white text-lg font-bold">
+                {amount
+                  ? `Support with $${parseFloat(amount || "0").toFixed(2)}`
+                  : "Enter Amount"}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Info Text */}
+          <Text className="text-slate-500 text-xs text-center">
+            {isRecurring
+              ? `Your payment method will be charged $${parseFloat(amount || "0").toFixed(2)} ${interval} on a recurring basis. You can cancel at any time.`
+              : "This is a secure one-time payment. Your support goes directly to maintaining and improving The Daily Answer."}
+          </Text>
+        </View>
       </ScrollView>
-
-      <EmailSupportModal
-        visible={isEmailModalVisible}
-        onClose={() => setEmailModalVisible(false)}
-      />
-      <TermsOfServiceModal
-        visible={isTermsModalVisible}
-        onClose={() => setTermsModalVisible(false)}
-      />
-      <PrivacyPolicyModal
-        visible={isPrivacyModalVisible}
-        onClose={() => setPrivacyModalVisible(false)}
+      <CustomAlert
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onClose={() => setAlertVisible(false)}
       />
     </SafeAreaView>
   );
 };
 
-export default SupportScreen;
+export default Support;

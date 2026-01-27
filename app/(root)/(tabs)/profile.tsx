@@ -1,11 +1,11 @@
 import icons from '@/constants/icons';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as SecureStore from "expo-secure-store";
 import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isAuthenticated, useGlobalContext } from '../../../utils/auth';
-import * as SecureStore from "expo-secure-store";
 
 interface SettingsItemProps {
   icon: ImageSourcePropType;
@@ -123,9 +123,9 @@ const Profile = () => {
           </View>
         </View>
         <View className="flex-row justify-around gap-3">
-          <TouchableOpacity className=" bg-slate-800 py-5 px-4 mb-4 rounded-lg items-center w-32" onPress={() => router.push('/saved')}>
-            <Ionicons name="bookmark-outline" size={24} color="#E94B7B" />
-            <Text className="text-lg mt-2 text-white"> Saved </Text>
+          <TouchableOpacity className=" bg-slate-800 py-5 px-4 mb-4 rounded-lg items-center w-32" onPress={() => router.push('/about')}>
+            <Ionicons name="information-circle-outline" size={24} color="#E94B7B" />
+            <Text className="text-lg mt-2 text-white"> About Us </Text>
           </TouchableOpacity>
           <TouchableOpacity className=" bg-slate-800 py-5 px-4 mb-4 rounded-lg items-center w-32" onPress={() => router.push('/prayer')}>
             <Ionicons name="heart-outline" size={24} color="#E94B7B" />
@@ -141,12 +141,13 @@ const Profile = () => {
         <View className="flex flex-col mt-10">
           <SettingsItem icon={icons.person}  title="Profile" onPress={() => router.push('/edit_profile')}/>
           <SettingsItem icon={icons.bell}  title='Subscription' onPress={() => router.push('/subscription')}/>
+          <SettingsItem icon={icons.dumbell} title='Manage Support' onPress={() => router.push('/ManageSupport')}/>
           <SettingsItem icon={icons.language}  title="Memory Verse" onPress={() => router.push('/memory')} />
           <SettingsItem icon={icons.file}  title="Notes" onPress={() => router.push('/note')} />
           <SettingsItem icon={icons.shield}  title="Prayers" onPress={() => router.push('/prayer')}/>
-          <SettingsItem icon={icons.info}  title="About Us"  onPress={() => router.push('/about')} />
-          <SettingsItem icon={icons.support}  title="Support"  onPress={() => router.push('/support')}/>
-          <SettingsItem icon={icons.security}  title="Security"  onPress={() => router.push('/security')}/>
+          {/* <SettingsItem icon={icons.info}  title="About Us"  onPress={() => router.push('/about')} /> */}
+          <SettingsItem icon={icons.support}  title="Security"  onPress={() => router.push('/security')}/>
+          <SettingsItem icon={icons.security}  title="Change Password"  onPress={() => router.push('/changedPassword')} />
         </View>
         <View className="flex flex-col mt-5 pt-5 border-primary-200">
           <SettingsItem icon={icons.logout} title="Logout"

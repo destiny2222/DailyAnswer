@@ -15,7 +15,7 @@
 // import hero3 from "@/assets/images/hero3.jpg";
 // import cardGradient from "@/assets/images/card-gradient.png";
 // import cart from "@/assets/images/proicons_cart.png";
-import logo from "@/assets/images/logo.jpeg";
+import logo from "@/assets/images/icon.png";
 
 export default {
     // onboardingCard1,

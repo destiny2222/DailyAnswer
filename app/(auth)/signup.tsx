@@ -33,7 +33,7 @@ const SignUp = () => {
   });
 
   const handleSignUp = async () => {
-    if (!fullName || !username || !email || !password || !confirmPassword) {
+    if (!fullName  || !email || !password || !confirmPassword) {
       setAlertConfig({
         title: "Validation Error",
         message: "Please fill in all fields",
@@ -280,28 +280,21 @@ const SignUp = () => {
               )}
             </TouchableOpacity>
 
-            {/* Terms and Privacy */}
-            <Text className="text-white/40 text-xs text-center mb-6 px-4">
-              By signing up, you agree to our{" "}
-              <Text className="text-[#E94B7B]">Terms of Service</Text> and{" "}
-              <Text className="text-[#E94B7B]">Privacy Policy</Text>
-            </Text>
-
             {/* Divider */}
-            <View className="flex-row items-center mb-6">
+            {/* <View className="flex-row items-center mb-6">
               <View className="flex-1 h-px bg-slate-700" />
               <Text className="text-white/40 text-sm px-4">
                 or sign up with
               </Text>
               <View className="flex-1 h-px bg-slate-700" />
-            </View>
+            </View> */}
 
             {/* Social Sign Up Buttons */}
-            <View className="flex-row justify-center gap-4 mb-6">
+            {/* <View className="flex-row justify-center gap-4 mb-6">
               <TouchableOpacity className="w-16 h-16 rounded-2xl bg-slate-800 items-center justify-center">
                 <Ionicons name="logo-google" size={24} color="#fff" />
               </TouchableOpacity>
-            </View>
+            </View> */}
 
             {/* Login Link */}
             <View className="flex-row items-center justify-center pb-8">

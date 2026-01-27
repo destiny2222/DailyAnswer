@@ -34,8 +34,19 @@ export const createNote = (data: {
   });
 };
 
+export const updateNote = (id: number, data: {
+  title: string;
+  content: string;
+}): Promise<Note> => {
+  return apiRequest(`/notes/${id}/update`, {
+    method: "PUT",
+    body: data,
+    auth: true,
+  });
+};
+
 export const deleteNote = (id: number): Promise<void> => {
-  return apiRequest(`/notes/${id}`, {
+  return apiRequest(`/notes/${id}/delete`, {
     method: "DELETE",
     auth: true,
   });

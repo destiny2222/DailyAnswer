@@ -22,6 +22,7 @@ import { router } from "expo-router";
 import { canAccessPremiumContent, useGlobalContext } from '../../../utils/auth';
 import AuthGuardModal from "@/components/AuthGuardModal";
 import SubscriptionModal from "@/components/SubscriptionModal";
+import * as SecureStore from 'expo-secure-store';
 
 type MemoryItem = {
   id: number | string;
@@ -75,6 +76,31 @@ export function MemoryCard({
   );
 }
 
+
+const stripHtml = (html: string) =>
+    html
+      ?.replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .trim();
+
+  const formatContent = (html: string) => {
+    if (!html) return '';
+    
+    // Replace closing paragraph tags with double newlines to preserve paragraph breaks
+    let formatted = html
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .trim();
+    
+    return formatted;
+  };
+
 type DevotionItem = {
   id: number | string;
   title: string;
@@ -113,7 +139,7 @@ export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
             {item.title}
           </Text>
           <Text className="text-white font-semibold text-sm mb-1">
-            {item.content.slice(0, 100)}...
+            {formatContent(item.content.slice(0, 100))}...
           </Text>
           <Text className="text-slate-400 text-xs">
             {formatDate(item.date)}
@@ -149,6 +175,30 @@ export default function HomeScreen() {
     if (hour < 12) return 'Morning';
     if (hour < 18) return 'Afternoon';
     return 'Evening';
+  };
+
+  const stripHtml = (html: string) =>
+    html
+      ?.replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .trim();
+
+  const formatContent = (html: string) => {
+    if (!html) return '';
+    
+    // Replace closing paragraph tags with double newlines to preserve paragraph breaks
+    let formatted = html
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .trim();
+    
+    return formatted;
   };
 
   useEffect(() => {
@@ -225,9 +275,9 @@ export default function HomeScreen() {
 
       {devotionalsLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#FB923C" />
+          <ActivityIndicator size="large" color="#E94B7B" />
           <Text className="text-white/70 text-sm mt-4">
-            Loading devotionals...
+            Loading ...
           </Text>
         </View>
       ) : (
@@ -271,7 +321,7 @@ export default function HomeScreen() {
                 {/* memory verse */}
                 {loading ? (
                   <View className="items-center justify-center py-12 mb-6">
-                    <ActivityIndicator size="large" color="#FB923C" />
+                    <ActivityIndicator size="large" color="#E94B7B" />
                     <Text className="text-white/70 text-sm mt-4">
                       Loading memories...
                     </Text>

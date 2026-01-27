@@ -4,7 +4,7 @@
     "slug": "DailyAnswer",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.jpeg",
+    "icon": "./assets/images/icon.png",
     "scheme": "The Daily Answer app",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -32,7 +32,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/transparent_logo.png",
+      "favicon": "./assets/images/favicon.png",
       "bundler": "metro"
     },
     "plugins": [
@@ -40,7 +40,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.jpeg",
+          "image": "./assets/images/splash-icon.png",
           "resizeMode": "cover",
           "backgroundColor": "#000000",
           "enableFullScreenImage_legacy": true
