@@ -1,10 +1,11 @@
 import { AuthProvider, hasCompletedOnboarding } from '@/utils/auth';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import './global.css';
+import OnboardingScreen from './(onboarding)';
 
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
 
@@ -37,14 +38,12 @@ export default function RootLayout() {
     checkOnboarding();
   }, []);
 
-  if (!fontsLoaded || !onboardingChecked) {
-    return null;
-  }
+  // if (!fontsLoaded || !onboardingChecked) {
+  //   return null;
+  // }
 
   if (showOnboarding) {
-    // Render onboarding screen directly
-    // You may need to adjust the import path if needed
-    const OnboardingScreen = require('./(onboarding)/index').default;
+    // Render onboarding screen directly;
     return <OnboardingScreen />;
   }
 
