@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import imgThree from "../../../assets/images/onboarding/img-three.jpeg";
 import { fetchMemories, Memory } from "../../../libs/memories";
-import { fetchDevotionals, Devotional } from "../../../libs/devotional";
+import { fetchDevotionals, Devotional, fetchTodaysDevotional } from "../../../libs/devotional";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { canAccessPremiumContent, useGlobalContext } from '../../../utils/auth';
@@ -59,7 +59,7 @@ export function MemoryCard({
       activeOpacity={0.85}
       onPress={() => onPress?.(item)}
     >
-      <View  style={{ backgroundColor: bg }}  className="rounded-3xl p-6 relative overflow-hidden" >
+      <View style={{ backgroundColor: bg }} className="rounded-3xl p-6 relative overflow-hidden" >
         <View className="absolute bottom-0 right-0 w-32 h-32 opacity-20">
           <Ionicons name="flower" size={128} color="#F97316" />
         </View>
@@ -78,28 +78,28 @@ export function MemoryCard({
 
 
 const stripHtml = (html: string) =>
-    html
-      ?.replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .trim();
+  html
+    ?.replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
 
-  const formatContent = (html: string) => {
-    if (!html) return '';
-    
-    // Replace closing paragraph tags with double newlines to preserve paragraph breaks
-    let formatted = html
-      .replace(/<\/p>/gi, '\n\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .trim();
-    
-    return formatted;
-  };
+const formatContent = (html: string) => {
+  if (!html) return '';
+
+  // Replace closing paragraph tags with double newlines to preserve paragraph breaks
+  let formatted = html
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .trim();
+
+  return formatted;
+};
 
 type DevotionItem = {
   id: number | string;
@@ -159,16 +159,17 @@ export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
 export default function HomeScreen() {
   const { user } = useGlobalContext();
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
-  const [quotesOfTheDay, setQuotesOfTheDay] = useState<Memory[]>([]);
-  const [devotionals, setDevotionals] = useState<Devotional[]>([]);
+  const [quotesOfTheDay, setQuotesOfTheDay] = useState < Memory[] > ([]);
+  const [devotionals, setDevotionals] = useState < Devotional[] > ([]);
   const [loading, setLoading] = useState(true);
   const [devotionalsLoading, setDevotionalsLoading] = useState(true);
   const { width } = Dimensions.get("window");
-  const memoryListRef = useRef<FlatList>(null);
+  const memoryListRef = useRef < FlatList > (null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [name, setName] = useState('');
   const [profileImageUrl, setProfileImageUrl] = useState('');
+  const [todaysDevotional, setTodaysDevotional] = useState < Devotional | null > (null);
 
   const getTimeOfDay = () => {
     const hour = new Date().getHours();
@@ -185,7 +186,7 @@ export default function HomeScreen() {
 
   const formatContent = (html: string) => {
     if (!html) return '';
-    
+
     // Replace closing paragraph tags with double newlines to preserve paragraph breaks
     let formatted = html
       .replace(/<\/p>/gi, '\n\n')
@@ -197,7 +198,7 @@ export default function HomeScreen() {
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .trim();
-    
+
     return formatted;
   };
 
@@ -242,8 +243,20 @@ export default function HomeScreen() {
     const loadDevotionals = async () => {
       try {
         setDevotionalsLoading(true);
-        const data = await fetchDevotionals();
-        setDevotionals(data);
+
+        // Fetch today's devotional
+        const todayData = await fetchTodaysDevotional();
+        setTodaysDevotional(todayData);
+
+        // Fetch all devotionals (today + previous)
+        const allData = await fetchDevotionals();
+
+        // Filter out today's devotional from the list to avoid duplication
+        const previousDevotionals = todayData
+          ? allData.filter(d => d.id !== todayData.id)
+          : allData;
+
+        setDevotionals(previousDevotionals);
       } catch (e) {
         console.log("Failed to load devotionals:", e);
       } finally {
@@ -255,20 +268,20 @@ export default function HomeScreen() {
     loadDevotionals();
   }, []);
 
-    const handleDevotionalPress = async (devotion: DevotionItem) => {
-      const accessStatus = await canAccessPremiumContent();
-      
-      if (!accessStatus.isAuthenticated) {
-        console.log("User not authenticated, showing auth modal.");
-        setShowAuthModal(true);
-      } else if (!accessStatus.hasSubscription) {
-        console.log("User not subscribed, showing subscription modal.");
-        setShowSubscriptionModal(true);
-      } else {
-        // User is authenticated and has subscription, navigate to devotional detail
-        router.push(`/devotional/${devotion.id}`);
-      }
-    };
+  const handleDevotionalPress = async (devotion: DevotionItem) => {
+    const accessStatus = await canAccessPremiumContent();
+
+    if (!accessStatus.isAuthenticated) {
+      console.log("User not authenticated, showing auth modal.");
+      setShowAuthModal(true);
+    } else if (!accessStatus.hasSubscription) {
+      console.log("User not subscribed, showing subscription modal.");
+      setShowSubscriptionModal(true);
+    } else {
+      // User is authenticated and has subscription, navigate to devotional detail
+      router.push(`/devotional/${devotion.id}`);
+    }
+  };
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
       <StatusBar style="light" />
@@ -309,16 +322,19 @@ export default function HomeScreen() {
                       {name || 'Anonymous User'}
                     </Text>
                   </View>
-                  <TouchableOpacity className="w-12 h-12 rounded-full bg-slate-800 items-center justify-center" onPress={() => router.push('/profile')}>
+                  <TouchableOpacity
+                    className="w-12 h-12 rounded-full bg-slate-800 items-center justify-center"
+                    onPress={() => router.push('/profile')}
+                  >
                     {user && profileImageUrl ? (
-                       <Image source={{ uri: profileImageUrl }} className="w-12 h-12 rounded-full" />
+                      <Image source={{ uri: profileImageUrl }} className="w-12 h-12 rounded-full" />
                     ) : (
                       <Ionicons name="person-circle-outline" size={48} color="#9CA3AF" />
                     )}
                   </TouchableOpacity>
                 </View>
 
-                {/* memory verse */}
+                {/* Memory Verses Section */}
                 {loading ? (
                   <View className="items-center justify-center py-12 mb-6">
                     <ActivityIndicator size="large" color="#E94B7B" />
@@ -370,11 +386,10 @@ export default function HomeScreen() {
                   {quotesOfTheDay.map((_, index) => (
                     <View
                       key={String(index)}
-                      className={`h-2 rounded-full mx-1 ${
-                        index === currentQuoteIndex
+                      className={`h-2 rounded-full mx-1 ${index === currentQuoteIndex
                           ? "w-6 bg-[#E94B7B]"
                           : "w-2 bg-slate-700"
-                      }`}
+                        }`}
                     />
                   ))}
                 </View>
@@ -390,11 +405,60 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              {/* Section Title */}
+              {/* TODAY'S DEVOTIONAL SECTION - Featured (OUTSIDE the header View) */}
+              <View className="px-6 mb-4">
+                <Text className="text-white text-xl font-bold mb-4">
+                  Today&apos;s Devotional
+                </Text>
+
+                {todaysDevotional ? (
+                  <TouchableOpacity
+                    onPress={() => handleDevotionalPress(todaysDevotional)}
+                    className="rounded-2xl overflow-hidden mb-6"
+                    activeOpacity={0.8}
+                  >
+                    <Image
+                      source={{ uri: todaysDevotional.image }}
+                      className="w-full h-56"
+                      resizeMode="cover"
+                    />
+                    <LinearGradient
+                      colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']}
+                      className="absolute bottom-0 left-0 right-0 p-4"
+                    >
+                      <View className="flex-row items-center mb-2">
+                        <Ionicons name="calendar" size={16} color="#FFF" />
+                        <Text className="text-white/90 text-xs ml-2">
+                          {new Date().toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </Text>
+                      </View>
+                      <Text className="text-white text-2xl font-bold mb-2">
+                        {todaysDevotional.title}
+                      </Text>
+                      <Text className="text-white/90 text-sm leading-6">
+                        {formatContent(todaysDevotional.content.slice(0, 100))}...
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ) : (
+                  <View className="bg-slate-800 rounded-2xl p-6 items-center mb-6">
+                    <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
+                    <Text className="text-white/70 text-sm mt-4">
+                      No devotional available for today
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* PREVIOUS DEVOTIONALS Section Header */}
               <View className="px-6 mb-4">
                 <View className="flex-row items-center justify-between">
                   <Text className="text-white text-xl font-bold">
-                    Today&apos;s Devotional
+                    Previous Devotionals
                   </Text>
                   <TouchableOpacity onPress={() => router.push('/resources')}>
                     <Text className="text-[#E94B7B] text-sm font-semibold">
@@ -408,58 +472,14 @@ export default function HomeScreen() {
           ListEmptyComponent={
             <View className="px-6 py-8 items-center">
               <Text className="text-white/70 text-sm">
-                No devotionals available
+                No previous devotionals available
               </Text>
             </View>
           }
-          ListFooterComponent={
-            <>
-              {/* Message from CEO */}
-              {/* <View className="px-6 mb-8">
-                <View className="flex-row items-center justify-between mb-4">
-                  <Text className="text-white text-xl font-bold">
-                    Message from CEO
-                  </Text>
-                  <TouchableOpacity>
-                    <Text className="text-[#E94B7B] text-sm font-semibold">
-                      See all
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                  className="bg-slate-800 rounded-2xl overflow-hidden"
-                  activeOpacity={0.8}
-                >
-                  <ImageBackground
-                    source={imgThree}
-                    className="w-full h-40"
-                    resizeMode="cover"
-                  >
-                    <View className="absolute bottom-0 right-0 left-0 rounded-full p-2">
-                      <LinearGradient
-                        colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.8)"]}
-                        className="px-3 py-1 rounded-full self-start"
-                      >
-                        <Text className="text-white text-base font-bold">
-                          Weekly Inspiration & Guidance
-                        </Text>
-                        <Text className="text-white/80 text-xs mt-1">
-                          A message of hope and direction
-                        </Text>
-                      </LinearGradient>
-                    </View>
-                  </ImageBackground>
-                </TouchableOpacity>
-              </View> */}
-
-              {/* Bottom Spacing for Tab Bar */}
-              <View className="h-20" />
-            </>
-          }
+          ListFooterComponent={<View className="h-20" />}
         />
       )}
-      <AuthGuardModal  visible={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      <AuthGuardModal visible={showAuthModal} onClose={() => setShowAuthModal(false)} />
       <SubscriptionModal visible={showSubscriptionModal} onClose={() => setShowSubscriptionModal(false)} />
     </SafeAreaView>
   );

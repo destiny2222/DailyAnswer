@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
 import React, { useEffect, useState } from 'react';
@@ -14,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { detailDevotional } from '../../libs/devotional';
+import { detailDevotional, Devotional } from '../../libs/devotional';
 
 const DevotionalDetail = () => {
   const { id } = useLocalSearchParams();
@@ -22,22 +23,42 @@ const DevotionalDetail = () => {
   const [devotional, setDevotional] = useState<Devotional | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [isBold, setIsBold] = useState(false);
   const [fontSize, setFontSize] = useState(18);
 
   useEffect(() => {
     loadDevotional();
+    setupAudio();
+    
+    return () => {
+      // Cleanup speech when component unmounts
+      Speech.stop();
+    };
   }, [id]);
+
+  const setupAudio = async () => {
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        staysActiveInBackground: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+    } catch (error) {
+      console.error('Error setting up audio:', error);
+    }
+  };
 
   const loadDevotional = async () => {
     try {
       setLoading(true);
       const data = await detailDevotional(id as string);
-      // console.log('Devotional loaded:', data);
       setDevotional(data);
     } catch (error) {
-      // console.error('Error loading devotional:', error);
+      console.error('Error loading devotional:', error);
     } finally {
       setLoading(false);
     }
@@ -65,7 +86,6 @@ const DevotionalDetail = () => {
   const formatContent = (html: string) => {
     if (!html) return '';
     
-    // Replace closing paragraph tags with double newlines to preserve paragraph breaks
     let formatted = html
       .replace(/<\/p>/gi, '\n\n')
       .replace(/<br\s*\/?>/gi, '\n')
@@ -87,27 +107,72 @@ const DevotionalDetail = () => {
         message: `${devotional.title}\n\n${formatContent(devotional.content)}\n\n${devotional.key_verse}`,
       });
     } catch (error) {
-      // console.error('Error sharing:', error);
+      console.error('Error sharing:', error);
     }
   };
 
+  const getFullText = () => {
+    if (!devotional) return '';
+    
+    const parts = [
+      devotional.title,
+      devotional.subheading && `${devotional.subheading}`,
+      devotional.key_verse && `Key Verse: ${devotional.key_verse}`,
+      formatContent(devotional.content),
+      devotional.application_note && formatContent(devotional.application_note),
+      devotional.verses && `Scripture References: ${formatContent(devotional.verses)}`,
+      devotional.prayer_note && formatContent(devotional.prayer_note),
+    ].filter(Boolean);
+    
+    return parts.join('. ');
+  };
+
   const handlePlayPause = async () => {
-    if (isSpeaking) {
-      Speech.stop();
-      setIsSpeaking(false);
+    if (!devotional) return;
+
+    if (isSpeaking && !isPaused) {
+      // Pause
+      Speech.pause();
+      setIsPaused(true);
+    } else if (isSpeaking && isPaused) {
+      // Resume
+      Speech.resume();
+      setIsPaused(false);
     } else {
-      if (!devotional) return;
-      
-      const textToSpeak = `${devotional.title}. Key Verse: ${devotional.key_verse}. 
-      ${formatContent(devotional.content)}. ${devotional.application_note}. Memory Verse: ${devotional.verse}. Prayer note: ${devotional.prayer_note}.`;
+      // Start new
+      const textToSpeak = getFullText();
       
       setIsSpeaking(true);
+      setIsPaused(false);
+      
       Speech.speak(textToSpeak, {
-        onDone: () => setIsSpeaking(false),
-        onStopped: () => setIsSpeaking(false),
-        onError: () => setIsSpeaking(false),
+        language: 'en-US',
+        pitch: 1.0,
+        rate: 0.85,
+        onStart: () => {
+          setIsSpeaking(true);
+          setIsPaused(false);
+        },
+        onDone: () => {
+          setIsSpeaking(false);
+          setIsPaused(false);
+        },
+        onStopped: () => {
+          setIsSpeaking(false);
+          setIsPaused(false);
+        },
+        onError: () => {
+          setIsSpeaking(false);
+          setIsPaused(false);
+        },
       });
     }
+  };
+
+  const handleStop = () => {
+    Speech.stop();
+    setIsSpeaking(false);
+    setIsPaused(false);
   };
 
   if (loading) {
@@ -138,22 +203,47 @@ const DevotionalDetail = () => {
     <SafeAreaView className="flex-1 bg-gray-50">
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => {
+          Speech.stop();
+          router.back();
+        }}>
           <Ionicons name="arrow-back" size={32} color="#333" />
         </TouchableOpacity>
         <View className="flex-row space-x-4 gap-1">
-          <TouchableOpacity className='bg-gray-400 p-3 rounded-2xl' onPress={() => setShowFormatMenu(true)}>
+          {/* Play/Pause Button - NOW VISIBLE */}
+          <TouchableOpacity 
+            className='bg-[#E94B7B] p-3 rounded-2xl' 
+            onPress={handlePlayPause}
+          >
+            <Ionicons 
+              name={isSpeaking && !isPaused ? "pause" : "play"} 
+              size={20} 
+              color="#FFF" 
+            />
+          </TouchableOpacity>
+          
+          {/* Stop Button - Shows when playing */}
+          {isSpeaking && (
+            <TouchableOpacity 
+              className='bg-gray-600 p-3 rounded-2xl' 
+              onPress={handleStop}
+            >
+              <Ionicons name="stop" size={20} color="#FFF" />
+            </TouchableOpacity>
+          )}
+          
+          <TouchableOpacity 
+            className='bg-gray-400 p-3 rounded-2xl' 
+            onPress={() => setShowFormatMenu(true)}
+          >
             <Ionicons name="text" size={20} color="#333" />
           </TouchableOpacity>
-          <TouchableOpacity className='bg-gray-400 p-3 rounded-2xl' onPress={handleShare}>
+          
+          <TouchableOpacity 
+            className='bg-gray-400 p-3 rounded-2xl' 
+            onPress={handleShare}
+          >
             <Ionicons name="share-outline" size={20} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity className='bg-gray-400 p-3 rounded-2xl' onPress={handlePlayPause}>
-            <Ionicons 
-              name={isSpeaking ? "pause-circle" : "play-circle"} 
-              size={20} 
-              color="#E94B7B" 
-            />
           </TouchableOpacity>
         </View>
       </View>
@@ -169,7 +259,11 @@ const DevotionalDetail = () => {
         {/* Content */}
         <View className="bg-white rounded-t-3xl -mt-6 pt-6 px-6">
           {/* Date */}
-          <Text className='text-lg font-rubik-medium font-medium'>{devotional.subheading}</Text>
+          {devotional.subheading && (
+            <Text className='text-lg font-rubik-medium font-medium mb-2'>
+              {devotional.subheading}
+            </Text>
+          )}
           <View className="flex-row items-center mb-4">
             <Ionicons name="calendar-outline" size={16} color="#666" />
             <Text className="text-gray-600 text-sm ml-2">
@@ -188,11 +282,49 @@ const DevotionalDetail = () => {
               <View className="bg-pink-100 rounded-full p-2 mr-3">
                 <Ionicons name="person" size={16} color="#E94B7B" />
               </View>
-              <Text className="text-gray-700 font-rubik-semibold ">
+              <Text className="text-gray-700 font-rubik-semibold">
                 By {devotional.author}
               </Text>
             </View>
           )}
+
+          {/* Audio Player Card - Alternative prominent position */}
+          <TouchableOpacity
+            onPress={handlePlayPause}
+            className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl p-4 mb-6 border border-pink-200"
+            activeOpacity={0.7}
+          >
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center flex-1">
+                <View className="bg-[#E94B7B] rounded-full p-3 mr-3">
+                  <Ionicons 
+                    name={isSpeaking && !isPaused ? "pause" : "play"} 
+                    size={24} 
+                    color="#FFF" 
+                  />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-gray-900 font-bold text-base">
+                    {isSpeaking && !isPaused ? 'Listening Mode' : isPaused ? 'Paused' : 'Listen to Devotional'}
+                  </Text>
+                  <Text className="text-gray-600 text-sm">
+                    {isSpeaking && !isPaused ? 'Tap to pause' : isPaused ? 'Tap to resume' : 'Tap to start audio'}
+                  </Text>
+                </View>
+              </View>
+              {isSpeaking && (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleStop();
+                  }}
+                  className="bg-gray-200 rounded-full p-2"
+                >
+                  <Ionicons name="stop" size={20} color="#333" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </TouchableOpacity>
 
           {/* Key Verse */}
           {devotional.key_verse && (
@@ -224,11 +356,21 @@ const DevotionalDetail = () => {
               {formatContent(devotional.content)}
             </Text>
           </View>
-          <View className="bg-blue-50 rounded-xl p-4 mb-6">
-            <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
-              {formatContent(devotional.application_note)}
-            </Text>
-          </View>
+          
+          {devotional.application_note && (
+            <View className="bg-blue-50 rounded-xl p-4 mb-6">
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="bulb-outline" size={18} color="#3B82F6" />
+                <Text className="text-sm font-bold text-blue-700 ml-2">
+                  Application
+                </Text>
+              </View>
+              <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
+                {formatContent(devotional.application_note)}
+              </Text>
+            </View>
+          )}
+          
           {/* Related Verses */}
           {devotional.verses && (
             <View className="bg-blue-50 rounded-xl p-4 mb-6">
@@ -243,14 +385,25 @@ const DevotionalDetail = () => {
               </Text>
             </View>
           )}
-          <View className="bg-blue-50 rounded-xl p-4 mb-6">
-            <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
-              {formatContent(devotional.prayer_note)}
-            </Text>
-          </View>
+          
+          {devotional.prayer_note && (
+            <View className="bg-purple-50 rounded-xl p-4 mb-6">
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="hand-right-outline" size={18} color="#9333EA" />
+                <Text className="text-sm font-bold text-purple-700 ml-2">
+                  Prayer
+                </Text>
+              </View>
+              <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
+                {formatContent(devotional.prayer_note)}
+              </Text>
+            </View>
+          )}
+          
           {/* Action Buttons */}
-          <View className="flex-row space-x-3 mb-8 ">
-            <TouchableOpacity  className="flex-1 flex-row items-center justify-center bg-[#E94B7B] py-4 rounded-full"
+          <View className="flex-row space-x-3 mb-8">
+            <TouchableOpacity  
+              className="flex-1 flex-row items-center justify-center bg-[#E94B7B] py-4 rounded-full"
               onPress={handleShare}
               activeOpacity={0.8}
             >
@@ -279,7 +432,6 @@ const DevotionalDetail = () => {
               </Text>
             )}
           </View>
-          
         </View>
       </ScrollView>
 
