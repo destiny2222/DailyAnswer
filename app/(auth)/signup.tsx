@@ -33,6 +33,8 @@ const SignUp = () => {
   });
 
   const handleSignUp = async () => {
+    
+
     if (!fullName  || !email || !password || !confirmPassword) {
       setAlertConfig({
         title: "Validation Error",
@@ -78,6 +80,8 @@ const SignUp = () => {
         auth: false,
       });
 
+      
+
       setAlertConfig({
         title: "Registration Successful!",
         message: "Please login to continue",
@@ -90,7 +94,7 @@ const SignUp = () => {
         router.push("/(auth)/login");
       }, 2000);
     } catch (error: any) {
-      console.error("SignUp error:", error);
+      // console.error("SignUp error:", error);
       const errorMessage = error?.data?.errors
         ? Object.values(error.data.errors).flat().join(", ")
         : error?.message || "Sign up failed. Please try again.";

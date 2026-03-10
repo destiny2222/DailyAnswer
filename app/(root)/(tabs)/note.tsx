@@ -44,7 +44,7 @@ const NotesScreen = () => {
       const data = await getNotes();
       setNotes(data || []);
     } catch (error) {
-      console.error('Error loading notes:', error);
+      // console.error('Error loading notes:', error);
       setNotes([]);
     } finally {
       setLoading(false);

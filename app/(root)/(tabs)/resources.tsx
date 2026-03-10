@@ -117,7 +117,7 @@ export default function ResourcesScreen() {
         
         setDevotionals(previousDevotionals);
       } catch (e) {
-        console.log("Failed to load devotionals:", e);
+        // console.log("Failed to load devotionals:", e);
       } finally {
         setIsLoading(false);
       }

@@ -1,6 +1,9 @@
+import CustomAlert from "@/components/CustomAlert";
+import { cancelRecurringSupport, getSupportPlans } from "@/libs/payment";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { Stack, router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -10,8 +13,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import CustomAlert from "@/components/CustomAlert";
-import { cancelRecurringSupport, getSupportPlans } from "@/libs/payment";
 
 interface RecurringSupport {
   id: string;
@@ -25,9 +26,9 @@ interface RecurringSupport {
 
 const ManageSupport = () => {
   // In a real app, fetch this data from your API
-  const [supports, setSupports] = useState<RecurringSupport[]>([]);
+  const [supports, setSupports] = useState < RecurringSupport[] > ([]);
   // Track loading state per subscription
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [loadingId, setLoadingId] = useState < string | null > (null);
   // Track loading state for initial data fetch
   const [initialLoading, setInitialLoading] = useState(true);
   const [alertVisible, setAlertVisible] = useState(false);
@@ -38,21 +39,23 @@ const ManageSupport = () => {
   });
 
 
-  useEffect(() => {
-    const fetchSupports = async () => {
-      setInitialLoading(true);
-      try {
-        const plans = await getSupportPlans();
-        setSupports(plans);
-      } catch (error) {
-        console.error("Failed to fetch support plans:", error);
-      } finally {
-        setInitialLoading(false);
-      }
-    };
+  useFocusEffect(
+    useCallback(() => {
+      const fetchSupports = async () => {
+        setInitialLoading(true);
+        try {
+          const plans = await getSupportPlans();
+          setSupports(plans);
+        } catch {
+          // console.error("Failed to fetch support plans:");
+        } finally {
+          setInitialLoading(false);
+        }
+      };
 
-    fetchSupports();
-  }, []);
+      fetchSupports();
+    }, [])
+  );
 
   const handleCancelSupport = (support: RecurringSupport) => {
     Alert.alert(
@@ -75,7 +78,7 @@ const ManageSupport = () => {
   const confirmCancelSupport = async (support: RecurringSupport) => {
     setLoadingId(support.id);
     try {
-      const response = await cancelRecurringSupport(support.subscription_id);
+      const response = await cancelRecurringSupport(support.subscriptionId);
 
       if (response.success) {
         // Remove the cancelled support from the list
@@ -156,10 +159,10 @@ const ManageSupport = () => {
             <View className="items-center py-12">
               <Ionicons name="heart-outline" size={64} color="#64748B" />
               <Text className="text-slate-400 text-lg text-center mt-4 mb-6">
-                You don't have any active recurring support.
+                You don&apos;t have any active recurring support.
               </Text>
               <TouchableOpacity
-                onPress={() => router.push("/(root)/support")}
+                onPress={() => router.push("/support" as any)}
                 className="bg-pink-600 px-6 py-3 rounded-xl"
               >
                 <Text className="text-white text-base font-semibold">
@@ -184,18 +187,16 @@ const ManageSupport = () => {
                       </Text>
                     </View>
                     <View
-                      className={`px-3 py-1 rounded-full ${
-                        support.status === "active"
-                          ? "bg-green-500/20"
-                          : "bg-slate-700"
-                      }`}
+                      className={`px-3 py-1 rounded-full ${support.status === "active"
+                        ? "bg-green-500/20"
+                        : "bg-slate-700"
+                        }`}
                     >
                       <Text
-                        className={`text-xs font-semibold ${
-                          support.status === "active"
-                            ? "text-green-400"
-                            : "text-slate-400"
-                        }`}
+                        className={`text-xs font-semibold ${support.status === "active"
+                          ? "text-green-400"
+                          : "text-slate-400"
+                          }`}
                       >
                         {support.status.toUpperCase()}
                       </Text>
@@ -205,7 +206,7 @@ const ManageSupport = () => {
                   <View className="flex-row items-center mb-4">
                     <Ionicons name="calendar" size={16} color="#64748B" />
                     <Text className="text-slate-400 text-sm ml-2">
-                      Next payment: {getNextPaymentDate(support.created_at, support.interval)}
+                      Next payment: {getNextPaymentDate(support.created, support.interval)}
                     </Text>
                   </View>
 
@@ -226,7 +227,7 @@ const ManageSupport = () => {
               ))}
 
               <TouchableOpacity
-                onPress={() => router.push("/(root)/support")}
+                onPress={() => router.push("/support" as any)}
                 className="bg-slate-800 border-2 border-pink-500 rounded-xl p-4 items-center mt-4"
               >
                 <Text className="text-pink-500 text-base font-semibold">

@@ -29,7 +29,7 @@ const AuthDebugScreen = () => {
       Alert.alert('Success', 'Profile fetched successfully');
     } catch (error: any) {
       Alert.alert('Error', error.message);
-      console.error('Profile fetch error:', error);
+      // console.error('Profile fetch error:', error);
     } finally {
       setLoading(false);
     }

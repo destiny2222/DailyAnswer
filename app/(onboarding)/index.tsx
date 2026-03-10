@@ -72,7 +72,7 @@ export default function OnboardingScreen() {
         // console.log("Onboarding status saved.");
         router.replace('/(root)/(tabs)');
       } catch (error) {
-        console.error("Error saving onboarding status:", error);
+        // console.error("Error saving onboarding status:", error);
         // Still navigate even if save fails
         router.replace('/(root)/(tabs)');
       }
@@ -84,7 +84,7 @@ export default function OnboardingScreen() {
       await SecureStore.setItemAsync("onboarding_completed", "true");
       router.replace('/(root)/(tabs)');
     } catch (error) {
-      console.error("Error saving onboarding status:", error);
+      // console.error("Error saving onboarding status:", error);
       // Still navigate even if save fails
       router.replace('/(root)/(tabs)');
     }

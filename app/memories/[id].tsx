@@ -31,7 +31,7 @@ const MemoryDetails = () => {
       const data = await detailMemory(id as string);
       setMemory(data);
     } catch (error) {
-      console.error("Error loading memory:", error);
+      // console.error("Error loading memory:", error);
     } finally {
       setLoading(false);
     }

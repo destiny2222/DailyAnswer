@@ -75,7 +75,7 @@ const Login = () => {
         }, 1500);
       }
     } catch (error: any) {
-      console.error("Login error:", error);
+      // console.error("Login error:", error);
       const errorMessage = error?.data?.errors
         ? Array.isArray(error.data.errors)
           ? error.data.errors.join(", ")

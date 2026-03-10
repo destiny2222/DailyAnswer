@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setHasPaid(false);
       }
     } catch (error) {
-      console.error("Error during auth state check:", error);
+      // console.error("Error during auth state check:", error);
       await logout();
     } finally {
       setLoading(false);
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await SecureStore.deleteItemAsync("access_token");
     } catch (error) {
-      console.error("Error during logout:", error);
+      // console.error("Error during logout:", error);
     } finally {
       setIsAuthenticated(false);
       setUser(null);

@@ -48,7 +48,7 @@ const DevotionalDetail = () => {
         playThroughEarpieceAndroid: false,
       });
     } catch (error) {
-      console.error('Error setting up audio:', error);
+      // console.error('Error setting up audio:', error);
     }
   };
 
@@ -58,7 +58,7 @@ const DevotionalDetail = () => {
       const data = await detailDevotional(id as string);
       setDevotional(data);
     } catch (error) {
-      console.error('Error loading devotional:', error);
+      // console.error('Error loading devotional:', error);
     } finally {
       setLoading(false);
     }
@@ -107,7 +107,7 @@ const DevotionalDetail = () => {
         message: `${devotional.title}\n\n${formatContent(devotional.content)}\n\n${devotional.key_verse}`,
       });
     } catch (error) {
-      console.error('Error sharing:', error);
+      // console.error('Error sharing:', error);
     }
   };
 

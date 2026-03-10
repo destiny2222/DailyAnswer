@@ -1,3 +1,6 @@
+import logoImage from "@/assets/images/logo.jpeg";
+import CustomAlert from "@/components/CustomAlert";
+import { confirmPayment, confirmRecurringSupport, createSupport } from "@/libs/payment";
 import { Ionicons } from "@expo/vector-icons";
 import { useStripe } from "@stripe/stripe-react-native";
 import { Stack, router } from "expo-router";
@@ -12,15 +15,12 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import logoImage from "@/assets/images/logo.jpeg";
-import CustomAlert from "@/components/CustomAlert";
-import { createSupport, confirmPayment, confirmRecurringSupport } from "@/libs/payment";
 
 const Support = () => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [amount, setAmount] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
-  const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
+  const [interval, setInterval] = useState < "monthly" | "yearly" > ("monthly");
   const [isProcessing, setIsProcessing] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState({
@@ -35,161 +35,166 @@ const Support = () => {
     setAmount(value.toString());
   };
 
-  
+
   const handleSupport = async () => {
-  const parsedAmount = parseFloat(amount);
+    const parsedAmount = parseFloat(amount);
 
-  if (!amount || parsedAmount < 1) {
-    setAlertConfig({
-      title: "Invalid Amount",
-      message: "Please enter an amount of at least $1.",
-      type: "error",
-    });
-    setAlertVisible(true);
-    return;
-  }
-
-  setIsProcessing(true);
-  try {
-    const response = await createSupport(
-      parsedAmount,
-      isRecurring,
-      isRecurring ? interval : undefined
-    );
-
-    const { clientSecret, customerId, type, priceId, setupIntentId } = response;
-
-    if (isRecurring) {
-      // For recurring payments, use setupIntentClientSecret
-      const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: "The Daily Answer",
-        customerId: customerId,
-        setupIntentClientSecret: clientSecret,
-        allowsDelayedPaymentMethods: false,
+    if (!amount || parsedAmount < 1) {
+      setAlertConfig({
+        title: "Invalid Amount",
+        message: "Please enter an amount of at least $1.",
+        type: "error",
       });
-
-      if (initError) {
-        setAlertConfig({
-          title: "Error",
-          message: "Failed to initialize payment sheet.",
-          type: "error",
-        });
-        setAlertVisible(true);
-        setIsProcessing(false);
-        return;
-      }
-
-      const { error: presentError } = await presentPaymentSheet();
-
-      if (presentError) {
-        if (presentError.code !== "Canceled") {
-          setAlertConfig({
-            title: "Payment Error",
-            message: presentError.message,
-            type: "error",
-          });
-          setAlertVisible(true);
-        }
-        setIsProcessing(false);
-        return;
-      }
-
-      // After successful payment method collection, create the subscription
-      const confirmation = await confirmRecurringSupport(setupIntentId, priceId);
-
-      if (confirmation.success) {
-        setAlertConfig({
-          title: "Thank You! 🎉",
-          message: `Your recurring support of $${parsedAmount.toFixed(2)} has been set up successfully. We truly appreciate your generosity!`,
-          type: "success",
-        });
-        setAlertVisible(true);
-
-        // Reset form
-        setAmount("");
-        setIsRecurring(false);
-
-      } else {
-        setAlertConfig({
-          title: "Confirmation Failed",
-          message: confirmation.message || "Could not set up recurring support.",
-          type: "error",
-        });
-        setAlertVisible(true);
-      }
-    } else {
-      // For one-time payments
-      const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: "The Daily Answer",
-        customerId: customerId,
-        paymentIntentClientSecret: clientSecret,
-        allowsDelayedPaymentMethods: true,
-      });
-
-      if (initError) {
-        setAlertConfig({
-          title: "Error",
-          message: "Failed to initialize payment sheet.",
-          type: "error",
-        });
-        setAlertVisible(true);
-        setIsProcessing(false);
-        return;
-      }
-
-      const { error: presentError } = await presentPaymentSheet();
-
-      if (presentError) {
-        if (presentError.code !== "Canceled") {
-          setAlertConfig({
-            title: "Payment Error",
-            message: presentError.message,
-            type: "error",
-          });
-          setAlertVisible(true);
-        }
-        setIsProcessing(false);
-        return;
-      }
-
-      const paymentIntentId = clientSecret.split("_secret")[0];
-      const confirmation = await confirmPayment(paymentIntentId);
-
-      if (confirmation.success) {
-        setAlertConfig({
-          title: "Thank You! 🎉",
-          message: `Your one-time support of $${parsedAmount.toFixed(2)} has been processed successfully. We truly appreciate your generosity!`,
-          type: "success",
-        });
-        setAlertVisible(true);
-
-        // Reset form
-        setAmount("");
-
-        // Navigate back after a delay
-        setTimeout(() => {
-          router.back();
-        }, 2500);
-      } else {
-        setAlertConfig({
-          title: "Confirmation Failed",
-          message: confirmation.message || "Could not process your support payment.",
-          type: "error",
-        });
-        setAlertVisible(true);
-      }
+      setAlertVisible(true);
+      return;
     }
-  } catch (e: any) {
-    setAlertConfig({
-      title: "Payment Error",
-      message: e.message || "An unexpected error occurred.",
-      type: "error",
-    });
-    setAlertVisible(true);
-  } finally {
-    setIsProcessing(false);
-  }
-};
+
+    setIsProcessing(true);
+    try {
+      const response = await createSupport(
+        parsedAmount,
+        isRecurring,
+        isRecurring ? interval : undefined
+      );
+
+      const { clientSecret, customerId, type, priceId, setupIntentId } = response;
+
+      if (isRecurring) {
+        // For recurring payments, use setupIntentClientSecret
+        const { error: initError } = await initPaymentSheet({
+          merchantDisplayName: "The Daily Answer",
+          customerId: customerId,
+          setupIntentClientSecret: clientSecret,
+          allowsDelayedPaymentMethods: false,
+        });
+
+        if (initError) {
+          setAlertConfig({
+            title: "Error",
+            message: "Failed to initialize payment sheet.",
+            type: "error",
+          });
+          setAlertVisible(true);
+          setIsProcessing(false);
+          return;
+        }
+
+        const { error: presentError } = await presentPaymentSheet();
+
+        if (presentError) {
+          if (presentError.code !== "Canceled") {
+            setAlertConfig({
+              title: "Payment Error",
+              message: presentError.message,
+              type: "error",
+            });
+            setAlertVisible(true);
+          }
+          setIsProcessing(false);
+          return;
+        }
+
+        // After successful payment method collection, create the subscription
+        const confirmation = await confirmRecurringSupport(setupIntentId, priceId);
+
+        if (confirmation.success) {
+          setAlertConfig({
+            title: "Thank You! 🎉",
+            message: `Your recurring support of $${parsedAmount.toFixed(2)} has been set up successfully. We truly appreciate your generosity!`,
+            type: "success",
+          });
+          setAlertVisible(true);
+
+          // Reset form
+          setAmount("");
+          setIsRecurring(false);
+
+          // Navigate to Manage Support after a delay
+          setTimeout(() => {
+            router.replace("/ManageSupport" as any);
+          }, 2000);
+
+        } else {
+          setAlertConfig({
+            title: "Confirmation Failed",
+            message: confirmation.message || "Could not set up recurring support.",
+            type: "error",
+          });
+          setAlertVisible(true);
+        }
+      } else {
+        // For one-time payments
+        const { error: initError } = await initPaymentSheet({
+          merchantDisplayName: "The Daily Answer",
+          customerId: customerId,
+          paymentIntentClientSecret: clientSecret,
+          allowsDelayedPaymentMethods: true,
+        });
+
+        if (initError) {
+          setAlertConfig({
+            title: "Error",
+            message: "Failed to initialize payment sheet.",
+            type: "error",
+          });
+          setAlertVisible(true);
+          setIsProcessing(false);
+          return;
+        }
+
+        const { error: presentError } = await presentPaymentSheet();
+
+        if (presentError) {
+          if (presentError.code !== "Canceled") {
+            setAlertConfig({
+              title: "Payment Error",
+              message: presentError.message,
+              type: "error",
+            });
+            setAlertVisible(true);
+          }
+          setIsProcessing(false);
+          return;
+        }
+
+        const paymentIntentId = clientSecret.split("_secret")[0];
+        const confirmation = await confirmPayment(paymentIntentId);
+
+        if (confirmation.success) {
+          setAlertConfig({
+            title: "Thank You! 🎉",
+            message: `Your one-time support of $${parsedAmount.toFixed(2)} has been processed successfully. We truly appreciate your generosity!`,
+            type: "success",
+          });
+          setAlertVisible(true);
+
+          // Reset form
+          setAmount("");
+
+          // Navigate to Manage Support after a delay
+          setTimeout(() => {
+            router.replace("/ManageSupport" as any);
+          }, 2000);
+        } else {
+          setAlertConfig({
+            title: "Confirmation Failed",
+            message: confirmation.message || "Could not process your support payment.",
+            type: "error",
+          });
+          setAlertVisible(true);
+        }
+      }
+    } catch (e: any) {
+      setAlertConfig({
+        title: "Payment Error",
+        message: e.message || "An unexpected error occurred.",
+        type: "error",
+      });
+      setAlertVisible(true);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
       <Stack.Screen
@@ -247,11 +252,10 @@ const Support = () => {
                 <TouchableOpacity
                   key={value}
                   onPress={() => handleAmountSelect(value)}
-                  className={`w-[30%] border-2 rounded-xl p-3 mb-3 items-center ${
-                    amount === value.toString()
+                  className={`w-[30%] border-2 rounded-xl p-3 mb-3 items-center ${amount === value.toString()
                       ? "border-pink-500 bg-pink-500/10"
                       : "border-slate-700"
-                  }`}
+                    }`}
                 >
                   <Text className="text-white text-lg font-bold">
                     ${value}
@@ -286,9 +290,8 @@ const Support = () => {
               className="flex-row items-center bg-slate-800 rounded-xl p-4 border-2 border-slate-700"
             >
               <View
-                className={`w-6 h-6 rounded-md mr-3 items-center justify-center ${
-                  isRecurring ? "bg-pink-500" : "bg-slate-700"
-                }`}
+                className={`w-6 h-6 rounded-md mr-3 items-center justify-center ${isRecurring ? "bg-pink-500" : "bg-slate-700"
+                  }`}
               >
                 {isRecurring && (
                   <Ionicons name="checkmark" size={18} color="white" />
@@ -309,11 +312,10 @@ const Support = () => {
               <View className="flex-row justify-between">
                 <TouchableOpacity
                   onPress={() => setInterval("monthly")}
-                  className={`flex-1 mr-2 border-2 rounded-xl p-4 items-center ${
-                    interval === "monthly"
+                  className={`flex-1 mr-2 border-2 rounded-xl p-4 items-center ${interval === "monthly"
                       ? "border-pink-500 bg-pink-500/10"
                       : "border-slate-700"
-                  }`}
+                    }`}
                 >
                   <Text className="text-white text-base font-semibold">
                     Monthly
@@ -321,11 +323,10 @@ const Support = () => {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setInterval("yearly")}
-                  className={`flex-1 ml-2 border-2 rounded-xl p-4 items-center ${
-                    interval === "yearly"
+                  className={`flex-1 ml-2 border-2 rounded-xl p-4 items-center ${interval === "yearly"
                       ? "border-pink-500 bg-pink-500/10"
                       : "border-slate-700"
-                  }`}
+                    }`}
                 >
                   <Text className="text-white text-base font-semibold">
                     Yearly
@@ -339,9 +340,8 @@ const Support = () => {
           <TouchableOpacity
             onPress={handleSupport}
             disabled={isProcessing || !amount}
-            className={`w-full py-4 rounded-xl items-center justify-center mb-6 ${
-              isProcessing || !amount ? "bg-pink-600/50" : "bg-pink-600"
-            }`}
+            className={`w-full py-4 rounded-xl items-center justify-center mb-6 ${isProcessing || !amount ? "bg-pink-600/50" : "bg-pink-600"
+              }`}
           >
             {isProcessing ? (
               <ActivityIndicator color="#fff" />

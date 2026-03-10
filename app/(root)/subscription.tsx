@@ -11,7 +11,9 @@ import {
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { confirmPayment, createPaymentIntent } from '../../libs/payment';
+// import { confirmPayment, createPaymentIntent, createSubscription } from '../../libs/payment';
+import { confirmPayment, createSubscription } from '../../libs/payment';
+
 
 const SubscriptionScreen = () => {
   const router = useRouter();
@@ -23,19 +25,19 @@ const SubscriptionScreen = () => {
     try {
       setLoading(true);
 
-      // 1. Create payment intent
-      const clientSecret = await createPaymentIntent();
+      const response = await createSubscription('1'); 
+
       const { error: initError } = await initPaymentSheet({
-        paymentIntentClientSecret: clientSecret,
+        paymentIntentClientSecret: response.clientSecret,
         merchantDisplayName: 'Daily Answer',
         returnURL: 'dailyanswer://subscription',
+        customerId: response.customerId,
         defaultBillingDetails: {
           name: '',
         },
       });
 
       if (initError) {
-        
         Alert.alert('Error', initError.message);
         setLoading(false);
         return;
@@ -44,47 +46,27 @@ const SubscriptionScreen = () => {
       setLoading(false);
 
       const { error: presentError } = await presentPaymentSheet();
-
       if (presentError) {
-        
         Alert.alert('Payment Cancelled', presentError.message);
         return;
       }
-      // 4. Payment successful, confirm on backend
-      setProcessing(true);
-      
-      // Extract payment intent ID from client secret
-      const paymentIntentId = clientSecret.split('_secret_')[0];
-      
-      const confirmResponse = await confirmPayment(paymentIntentId);
 
+      setProcessing(true);
+      const paymentIntentId = response.clientSecret.split('_secret_')[0];
+      const confirmResponse = await confirmPayment(paymentIntentId);
       setProcessing(false);
 
       if (confirmResponse.success) {
-        Alert.alert(
-          'Success! 🎉',
-          'Your subscription is now active. Enjoy unlimited access!',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.back(),
-            },
-          ]
-        );
+        Alert.alert('Success! 🎉', 'Your subscription is now active!', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
       } else {
         Alert.alert('Error', 'Payment confirmation failed. Please contact support.');
       }
     } catch (error: any) {
       setLoading(false);
       setProcessing(false);
-      
-      // Show more detailed error
-      const errorMessage = error.message || 'Something went wrong';
-      Alert.alert(
-        'Payment Error', 
-        `${errorMessage}\n\nPlease check console for details.`,
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Payment Error', error.message || 'Something went wrong');
     }
   };
 
@@ -132,7 +114,7 @@ const SubscriptionScreen = () => {
             <Text className="text-xl font-bold text-gray-800 mb-4">
               What's Included:
             </Text>
-            
+
             <View className="space-y-4">
               <View className="flex-row items-start mb-4">
                 <View className="bg-green-100 rounded-full p-2 mr-3">

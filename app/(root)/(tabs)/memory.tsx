@@ -23,7 +23,7 @@ const MemoryVerse = () => {
       const data = await fetchMemories()
       setMemories(data)
     } catch (error) {
-      console.error('Error loading memories:', error)
+      // console.error('Error loading memories:', error)
     } finally {
       setLoading(false)
     }
@@ -95,7 +95,7 @@ const MemoryVerse = () => {
         setAlertVisible(true)
         setMenuVisible(false)
       } catch (error) {
-        console.error('Error creating prayer:', error)
+        // console.error('Error creating prayer:', error)
         setAlertConfig({
           title: 'Failed to Add Prayer',
           message: 'Please try again.',

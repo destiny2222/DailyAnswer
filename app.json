@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "The Daily Answer app",
+    "scheme": "dailyanswer",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

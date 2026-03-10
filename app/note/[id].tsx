@@ -44,7 +44,7 @@ const NoteDetailScreen = () => {
       setTitle(noteData.title);
       setContent(noteData.content);
     } catch (error) {
-      console.error('Error loading note:', error);
+      // console.error('Error loading note:', error);
       setAlertConfig({
         title: "Load Error",
         message: "Could not load the note.",

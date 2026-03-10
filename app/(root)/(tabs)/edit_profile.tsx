@@ -109,7 +109,7 @@ const handleImageUpload = async (uri: string) => {
       });
     }
   } catch (error: any) {
-    console.error("Image upload error:", error?.data || error?.message);
+    // console.error("Image upload error:", error?.data || error?.message);
 
     setAlertInfo({
       visible: true,
@@ -143,7 +143,7 @@ const handleImageUpload = async (uri: string) => {
             message: 'Profile updated successfully.',
             type: 'success',
         });
-        router.back();
+        // router.back();
       } else {
         setAlertInfo({
             visible: true,
@@ -153,7 +153,7 @@ const handleImageUpload = async (uri: string) => {
         });
       }
     } catch (error: any) {
-      console.error('Profile update error:', error.response?.data || error.message);
+      // console.error('Profile update error:', error.response?.data || error.message);
       const errorMessage = error.response?.data?.error || 'An error occurred while updating profile data.';
       setAlertInfo({
         visible: true,

@@ -44,14 +44,18 @@ export interface PlansResponse {
   plans: Plan[];
 }
 
-
 export interface RecurringSupportPlan {
   id: string;
   subscriptionId: string;
   amount: number;
+  type: "one_time" | "recurring";
   interval: "monthly" | "yearly";
   nextPaymentDate: string;
   status: string;
+  paid_at: string;
+  created: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface RecurringSupportPlansResponse {
@@ -72,7 +76,7 @@ export interface CreateSupportResponse {
   subscriptionId?: string;
   priceId?: string;
   setupIntentId?: string;
-  type: 'one_time' | 'recurring';
+  type: "one_time" | "recurring";
 }
 
 export interface ConfirmRecurringSupportResponse {
@@ -97,7 +101,7 @@ export async function getSubscriptionPlans(): Promise<Plan[]> {
     });
     return response.plans || [];
   } catch (error) {
-    console.error("Error fetching subscription plans:", error);
+    // console.error("Error fetching subscription plans:", error);
     throw error;
   }
 }
@@ -106,13 +110,22 @@ export async function getSubscriptionPlans(): Promise<Plan[]> {
  */
 export async function getSupportPlans(): Promise<RecurringSupportPlan[]> {
   try {
-    const response = await apiRequest<RecurringSupportPlansResponse>("/payment/recurring-support-plans", {
-      method: "GET",
-      auth: true,
-    });
-    return response.plans || [];
+    const response = await apiRequest<RecurringSupportPlansResponse>(
+      "/payment/recurring-support-plans",
+      {
+        method: "GET",
+        auth: true,
+      },
+    );
+    const plans = response.plans || [];
+    return plans.map((plan: any) => ({
+      ...plan,
+      subscriptionId: plan.subscription_id,
+      created: plan.created_at,
+      nextPaymentDate: plan.created_at,
+    })) as RecurringSupportPlan[];
   } catch (error) {
-    console.error("Error fetching support plans:", error);
+    // console.error("Error fetching support plans:", error);
     throw error;
   }
 }
@@ -134,7 +147,7 @@ export async function createSubscription(
     );
     return response;
   } catch (error) {
-    console.error("Error creating subscription:", error);
+    // console.error("Error creating subscription:", error);
     throw error;
   }
 }
@@ -145,7 +158,7 @@ export async function createSubscription(
 export async function createSupport(
   amount: number,
   isRecurring: boolean,
-  interval?: 'monthly' | 'yearly'
+  interval?: "monthly" | "yearly",
 ): Promise<CreateSupportResponse> {
   try {
     const response = await apiRequest<CreateSupportResponse>(
@@ -162,7 +175,7 @@ export async function createSupport(
     );
     return response;
   } catch (error) {
-    console.error("Error creating support payment:", error);
+    // console.error("Error creating support payment:", error);
     throw error;
   }
 }
@@ -172,7 +185,7 @@ export async function createSupport(
  */
 export async function confirmRecurringSupport(
   setupIntentId: string,
-  priceId: string
+  priceId: string,
 ): Promise<ConfirmRecurringSupportResponse> {
   try {
     const response = await apiRequest<ConfirmRecurringSupportResponse>(
@@ -188,7 +201,7 @@ export async function confirmRecurringSupport(
     );
     return response;
   } catch (error) {
-    console.error("Error confirming recurring support:", error);
+    // console.error("Error confirming recurring support:", error);
     throw error;
   }
 }
@@ -197,7 +210,7 @@ export async function confirmRecurringSupport(
  * Cancel a recurring support subscription.
  */
 export async function cancelRecurringSupport(
-  subscriptionId: string
+  subscriptionId: string,
 ): Promise<CancelSupportResponse> {
   try {
     const response = await apiRequest<CancelSupportResponse>(
@@ -210,7 +223,7 @@ export async function cancelRecurringSupport(
     );
     return response;
   } catch (error) {
-    console.error("Error cancelling recurring support:", error);
+    // console.error("Error cancelling recurring support:", error);
     throw error;
   }
 }

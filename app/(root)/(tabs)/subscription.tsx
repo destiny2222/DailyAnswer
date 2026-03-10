@@ -40,7 +40,7 @@ const Subscription = () => {
       try {
         setLoading(true);
         const availablePlans = await getSubscriptionPlans();
-        console.log("Fetched plans:", availablePlans);
+        // console.log("Fetched plans:", availablePlans);
         setPlans(availablePlans);
         if (availablePlans.length > 0) {
           // default to plan_standard_quarterly

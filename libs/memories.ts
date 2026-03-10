@@ -29,7 +29,7 @@ export const detailMemory = async (id: string): Promise<Memory> => {
     )) as MemoryDetailResponse;
     return response.data;
   } catch (error) {
-    console.error(`Error fetching memory with id ${id}:`, error);
+    // console.error(`Error fetching memory with id ${id}:`, error);
     throw error;
   }
 };

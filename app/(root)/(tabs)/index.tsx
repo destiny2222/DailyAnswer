@@ -234,7 +234,7 @@ export default function HomeScreen() {
         const memories = await fetchMemories();
         setQuotesOfTheDay(memories);
       } catch (e) {
-        console.log("Failed to load memories:", e);
+        // console.log("Failed to load memories:", e);
       } finally {
         setLoading(false);
       }
@@ -258,7 +258,7 @@ export default function HomeScreen() {
 
         setDevotionals(previousDevotionals);
       } catch (e) {
-        console.log("Failed to load devotionals:", e);
+        // console.log("Failed to load devotionals:", e);
       } finally {
         setDevotionalsLoading(false);
       }
@@ -272,10 +272,10 @@ export default function HomeScreen() {
     const accessStatus = await canAccessPremiumContent();
 
     if (!accessStatus.isAuthenticated) {
-      console.log("User not authenticated, showing auth modal.");
+      // console.log("User not authenticated, showing auth modal.");
       setShowAuthModal(true);
     } else if (!accessStatus.hasSubscription) {
-      console.log("User not subscribed, showing subscription modal.");
+      // console.log("User not subscribed, showing subscription modal.");
       setShowSubscriptionModal(true);
     } else {
       // User is authenticated and has subscription, navigate to devotional detail
