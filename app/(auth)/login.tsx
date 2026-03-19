@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
-import { apiRequest } from "../../utils/api";
+import { apiRequest, getCsrfToken } from "../../utils/api";
 import { useGlobalContext } from "../../utils/auth";
 
 const Login = () => {
@@ -25,11 +25,24 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
+  const [csrfToken, setCsrfToken] = useState<string | null>(null);
+  const [captchaRequired, setCaptchaRequired] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
   const [alertConfig, setAlertConfig] = useState({
     title: "",
     message: "",
     type: "success" as "success" | "error",
   });
+
+  // Fetch CSRF token on mount
+  React.useEffect(() => {
+    const fetchToken = async () => {
+      const token = await getCsrfToken();
+      setCsrfToken(token);
+    };
+    fetchToken();
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -45,22 +58,33 @@ const Login = () => {
     try {
       setLoading(true);
 
-      const response = await apiRequest<{ success: boolean; token: string }>(
+      const response = await apiRequest<{ 
+        success: boolean; 
+        token?: string; 
+        mfa_required?: boolean;
+        captcha_required?: boolean;
+      }>(
         "/login",
         {
           method: "POST",
           body: {
             email,
             password,
+            // turnstile_token: "..." // Would come from Turnstile component
           },
           auth: false,
+          csrf: csrfToken || undefined,
         },
       );
 
+      if (response.mfa_required) {
+        setMfaRequired(true);
+        setLoading(false);
+        return;
+      }
+
       if (response.success && response.token) {
         await SecureStore.setItemAsync("access_token", response.token);
-        
-        // Fetch user profile to update global context
         await refetchUser();
         
         setAlertConfig({
@@ -75,11 +99,16 @@ const Login = () => {
         }, 1500);
       }
     } catch (error: any) {
-      // console.error("Login error:", error);
+      if (error?.data?.captcha_required) {
+        setCaptchaRequired(true);
+      }
+
       const errorMessage = error?.data?.errors
         ? Array.isArray(error.data.errors)
           ? error.data.errors.join(", ")
-          : "Invalid credentials"
+          : typeof error.data.errors === 'object' 
+            ? Object.values(error.data.errors).flat().join(", ")
+            : "Invalid credentials"
         : error?.message || "Login failed. Please try again.";
 
       setAlertConfig({
@@ -87,6 +116,32 @@ const Login = () => {
         message: errorMessage,
         type: "error",
       });
+      setAlertVisible(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMfaVerify = async () => {
+    if (!mfaCode) return;
+    try {
+      setLoading(true);
+      const response = await apiRequest<{ success: boolean; token: string }>(
+        "/mfa/verify",
+        {
+          method: "POST",
+          body: { code: mfaCode, email }, // Simplified: using email for temp link
+          auth: false,
+        }
+      );
+
+      if (response.success && response.token) {
+        await SecureStore.setItemAsync("access_token", response.token);
+        await refetchUser();
+        router.replace("/(root)/(tabs)");
+      }
+    } catch (error: any) {
+      setAlertConfig({ title: "MFA Failed", message: "Invalid code", type: "error" });
       setAlertVisible(true);
     } finally {
       setLoading(false);
@@ -116,83 +171,138 @@ const Login = () => {
 
           {/* Form Section */}
           <View className="flex-1 px-6">
-            {/* Email Input */}
-            <View className="mb-4">
-              <Text className="text-white/80 text-sm font-semibold mb-2">
-                Email Address
-              </Text>
-              <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                <Ionicons name="mail-outline" size={20} color="#9CA3AF" />
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#9CA3AF"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  className="flex-1 ml-3 text-white text-base"
-                />
+            {captchaRequired && (
+              <View className="mb-4 p-4 bg-red-900/20 border border-red-500 rounded-2xl">
+                <Text className="text-red-400 text-sm text-center">
+                  Multiple failed attempts. CAPTCHA verification required.
+                  {/* Ideally, a Turnstile widget would be here */}
+                </Text>
               </View>
-            </View>
+            )}
 
-            {/* Password Input */}
-            <View className="mb-6">
-              <Text className="text-white/80 text-sm font-semibold mb-2">
-                Password
-              </Text>
-              <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#9CA3AF"
-                />
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoComplete="password"
-                  className="flex-1 ml-3 text-white text-base"
-                />
+            {!mfaRequired ? (
+              <>
+                {/* Email Input */}
+                <View className="mb-4">
+                  <Text className="text-white/80 text-sm font-semibold mb-2">
+                    Email Address
+                  </Text>
+                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
+                    <Ionicons name="mail-outline" size={20} color="#9CA3AF" />
+                    <TextInput
+                      value={email}
+                      onChangeText={setEmail}
+                      placeholder="Enter your email"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      className="flex-1 ml-3 text-white text-base"
+                    />
+                  </View>
+                </View>
+
+                {/* Password Input */}
+                <View className="mb-6">
+                  <Text className="text-white/80 text-sm font-semibold mb-2">
+                    Password
+                  </Text>
+                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
+                    <Ionicons
+                      name="lock-closed-outline"
+                      size={20}
+                      color="#9CA3AF"
+                    />
+                    <TextInput
+                      value={password}
+                      onChangeText={setPassword}
+                      placeholder="Enter your password"
+                      placeholderTextColor="#9CA3AF"
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      autoComplete="password"
+                      className="flex-1 ml-3 text-white text-base"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      className="ml-2"
+                    >
+                      <Ionicons
+                        name={showPassword ? "eye-outline" : "eye-off-outline"}
+                        size={20}
+                        color="#9CA3AF"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Forgot Password */}
                 <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  className="ml-2"
+                  className="self-end mb-6"
+                  onPress={() => router.push('/(auth)/forgotPassword')}
                 >
-                  <Ionicons
-                    name={showPassword ? "eye-outline" : "eye-off-outline"}
-                    size={20}
-                    color="#9CA3AF"
-                  />
+                  <Text className="text-[#E94B7B] text-sm font-semibold">
+                    Forgot Password?
+                  </Text>
                 </TouchableOpacity>
-              </View>
-            </View>
 
-            {/* Forgot Password */}
-            <TouchableOpacity
-              className="self-end mb-6"
-              onPress={() => router.push('/(auth)/forgotPassword')}
-            >
-              <Text className="text-[#E94B7B] text-sm font-semibold">
-                Forgot Password?
-              </Text>
-            </TouchableOpacity>
+                {/* Login Button */}
+                <TouchableOpacity
+                  onPress={handleLogin}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                  className="mb-6 rounded-2xl bg-[#E94B7B] py-4 items-center justify-center"
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text className="text-white text-lg font-bold">Sign In</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                {/* MFA Code Input */}
+                <View className="mb-6">
+                  <Text className="text-white/80 text-sm font-semibold mb-2">
+                    Two-Factor Authentication Code
+                  </Text>
+                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
+                    <Ionicons name="shield-checkmark-outline" size={20} color="#9CA3AF" />
+                    <TextInput
+                      value={mfaCode}
+                      onChangeText={setMfaCode}
+                      placeholder="Enter 6-digit code"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      className="flex-1 ml-3 text-white text-base"
+                    />
+                  </View>
+                </View>
 
-            {/* Login Button */}
-            <TouchableOpacity
-              onPress={handleLogin}
-              disabled={loading}
-              activeOpacity={0.8}
-              className="mb-6 rounded-2xl bg-[#E94B7B] py-4 items-center justify-center"
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text className="text-white text-lg font-bold">Sign In</Text>
-              )}
-            </TouchableOpacity>
+                {/* Verify MFA Button */}
+                <TouchableOpacity
+                  onPress={handleMfaVerify}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                  className="mb-4 rounded-2xl bg-[#E94B7B] py-4 items-center justify-center"
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text className="text-white text-lg font-bold">Verify Code</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setMfaRequired(false)}
+                  className="self-center mb-6"
+                >
+                  <Text className="text-white/60 text-sm">Cancel</Text>
+                </TouchableOpacity>
+              </>
+            )}
 
             {/* Divider */}
             {/* <View className="flex-row items-center mb-6">

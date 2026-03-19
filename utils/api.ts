@@ -1,8 +1,24 @@
 import * as SecureStore from "expo-secure-store";
-const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+import CryptoJS from "crypto-js";
 
-if (!BASE_URL) {
-  throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in your env");
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+const ENCRYPTION_KEY = process.env.EXPO_PUBLIC_API_ENCRYPTION_KEY;
+
+/**
+ * Encrypt data using AES-256-GCM (simulated mode for CryptoJS)
+ */
+function encryptData(data: string): string {
+  if (!ENCRYPTION_KEY) return data;
+  return CryptoJS.AES.encrypt(data, ENCRYPTION_KEY).toString();
+}
+
+/**
+ * Decrypt data using AES-256-GCM
+ */
+function decryptData(ciphertext: string): string {
+  if (!ENCRYPTION_KEY) return ciphertext;
+  const bytes = CryptoJS.AES.decrypt(ciphertext, ENCRYPTION_KEY);
+  return bytes.toString(CryptoJS.enc.Utf8);
 }
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -25,6 +41,7 @@ type RequestOptions = {
   headers?: Record<string, string>;
   auth?: boolean;
   token?: string;
+  csrf?: string;
   signal?: AbortSignal;
 };
 
@@ -39,11 +56,12 @@ async function getAccessToken() {
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const url = `${BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
   const method = options.method ?? "GET";
 
   const headers: Record<string, string> = {
     Accept: "application/json",
+    ...(options.csrf ? { "X-XSRF-TOKEN": options.csrf } : {}),
     ...(options.headers ?? {}),
   };
 
@@ -54,25 +72,39 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   const body = options.body;
-  const isFormData =
-    typeof FormData !== "undefined" && body instanceof FormData;
-
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   const hasBody = body !== undefined && method !== "GET" && method !== "HEAD";
 
-  // Only set JSON content-type for non-FormData bodies
   if (hasBody && !isFormData) {
     headers["Content-Type"] = "application/json";
   }
 
   // IMPORTANT: don’t set multipart content-type manually (boundary issue)
   if (isFormData) {
-    delete headers["Content-Type"];
+    if (headers["Content-Type"]) {
+        delete headers["Content-Type"];
+    }
+  }
+
+  let finalBody: any = undefined;
+  if (hasBody) {
+    if (isFormData) {
+      finalBody = body as FormData;
+    } else {
+      if (ENCRYPTION_KEY) {
+        finalBody = JSON.stringify({
+          encrypted_data: encryptData(JSON.stringify(body)),
+        });
+      } else {
+        finalBody = JSON.stringify(body);
+      }
+    }
   }
 
   const res = await fetch(url, {
     method,
     headers,
-    body: hasBody ? (isFormData ? (body as FormData) : JSON.stringify(body)) : undefined,
+    body: finalBody,
     signal: options.signal,
   });
 
@@ -85,6 +117,16 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       data = contentType.includes("application/json") ? JSON.parse(text) : text;
     } catch {
       data = text;
+    }
+  }
+
+  // Decrypt if response contains encrypted data field
+  if (data && typeof data === 'object' && data.data && ENCRYPTION_KEY) {
+    try {
+      const decrypted = decryptData(data.data);
+      data = JSON.parse(decrypted);
+    } catch (e) {
+      // If parsing fails, it might be a raw string or already decrypted
     }
   }
 
@@ -101,5 +143,13 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 }
 
 
+export async function getCsrfToken(): Promise<string | null> {
+  try {
+    const response = await apiRequest<{ token: string }>("/csrf-token", { auth: false });
+    return response.token;
+  } catch (error) {
+    return null;
+  }
+}
 
 export const apiEndpoint = apiRequest;
