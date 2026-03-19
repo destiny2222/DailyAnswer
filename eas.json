@@ -17,16 +17,10 @@
       "autoIncrement": true,
       "channel": "production",
       "ios": {
-        "resourceClass": "m-medium",
-        "codeSigning": {
-          "isManaged": true
-        }
+        "resourceClass": "m-medium"
       },
       "android": {
-        "buildType": "app-bundle",
-        "codeSigning": {
-          "isManaged": true
-        }
+        "buildType": "app-bundle"
       }
     },
     "simulator": {

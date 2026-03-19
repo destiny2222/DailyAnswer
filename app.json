@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Daily Answer",
+    "name": "The Daily Answer",
     "slug": "DailyAnswer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "dailyanswer",
+    "scheme": "thedailyanswer",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.destiny2222.DailyAnswer",
+      "bundleIdentifier": "com.thedailyanswer",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -31,7 +31,7 @@
       //   "android.permission.MODIFY_AUDIO_SETTINGS"
       // ],
       "permissions": [],
-      "package": "com.destiny2222.DailyAnswer"
+      "package": "com.thedailyanswer"
     },
     "web": {
       "output": "static",
@@ -52,7 +52,7 @@
       [
         "@stripe/stripe-react-native",
         {
-          "merchantIdentifier": "merchant.com.destiny2222.DailyAnswer",
+          "merchantIdentifier": "merchant.com.thedailyanswer",
           "enableGooglePay": false
         }
       ],
