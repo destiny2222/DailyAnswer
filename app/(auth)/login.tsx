@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
-import { apiRequest } from "../../utils/api";
+import { ApiError, apiRequest } from "../../utils/api";
 import { useGlobalContext } from "../../utils/auth";
 
 const Login = () => {
@@ -75,12 +75,8 @@ const Login = () => {
         }, 1500);
       }
     } catch (error: any) {
-      // console.error("Login error:", error);
-      const errorMessage = error?.data?.errors
-        ? Array.isArray(error.data.errors)
-          ? error.data.errors.join(", ")
-          : "Invalid credentials"
-        : error?.message || "Login failed. Please try again.";
+      // logger.error("Login error:", error);
+      const errorMessage = ApiError.getMessage(error);
 
       setAlertConfig({
         title: "Login Failed",
@@ -95,7 +91,7 @@ const Login = () => {
 
   return (
     <View className="flex-1 bg-slate-900 pt-7">
-      <StatusBar style="light" />
+      <StatusBar style="light" animated={true}/>
 
       <KeyboardAvoidingView  behavior={Platform.OS === "ios" ? "padding" : "height"}  className="flex-1" >
         <ScrollView  className="flex-1 " contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }}  showsVerticalScrollIndicator={false}  >

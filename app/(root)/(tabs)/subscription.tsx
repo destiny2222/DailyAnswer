@@ -80,14 +80,15 @@ const Subscription = () => {
     setIsSubscribing(true);
     try {
       const { clientSecret, customerId } = await createSubscription(selectedPlan);
-
+      
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: "The Daily Answer",
         customerId: customerId,
         paymentIntentClientSecret: clientSecret,
         allowsDelayedPaymentMethods: true,
-      });
 
+      });
+      
       if (initError) {
         setAlertConfig({
           title: "Error",
@@ -100,8 +101,8 @@ const Subscription = () => {
       }
 
       const { error: presentError } = await presentPaymentSheet();
-
       if (presentError) {
+        // logger.error("Present Error:", presentError);
         if (presentError.code !== 'Canceled') {
           setAlertConfig({
             title: "Payment Error",
@@ -141,6 +142,7 @@ const Subscription = () => {
         }
       }
     } catch (e: any) {
+      // logger.error("Subscription error:", e);
       setAlertConfig({
         title: "Subscription Error",
         message: e.message || "An unexpected error occurred.",

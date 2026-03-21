@@ -9,6 +9,8 @@ import { Devotional, fetchDevotionals, fetchTodaysDevotional } from "../../../li
 import { canAccessPremiumContent } from '../../../utils/auth';
 import TopNav from '@/components/topNav';
 import { LinearGradient } from 'expo-linear-gradient';
+import { logger } from "../../../utils/logger";
+import { StatusBar } from 'expo-status-bar';
 
 type DevotionItem = {
   id: number | string;
@@ -117,7 +119,7 @@ export default function ResourcesScreen() {
         
         setDevotionals(previousDevotionals);
       } catch (e) {
-        // console.log("Failed to load devotionals:", e);
+        logger.error("Failed to load devotionals:", e);
       } finally {
         setIsLoading(false);
       }
@@ -139,6 +141,7 @@ export default function ResourcesScreen() {
 
   return (
     <SafeAreaView className="bg-gray-900 h-screen">
+      <StatusBar style="light"/>
       <TopNav title="Devotional" />
       {isLoading ? (
         <View className="flex-1 justify-center items-center">

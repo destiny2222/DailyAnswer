@@ -1,6 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { apiRequest } from "./api";
+import { logger } from "./logger";
 
 export interface UserProfile {
   id: string;
@@ -13,6 +14,7 @@ export interface UserProfile {
   payment_expires_at: string | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  profile_image_url?: string | null;
 }
 
 interface AuthState {
@@ -53,7 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setHasPaid(false);
       }
     } catch (error) {
-      // console.error("Error during auth state check:", error);
+      // logger.error("Error during auth state check:", error);
       await logout();
     } finally {
       setLoading(false);
@@ -68,7 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await SecureStore.deleteItemAsync("access_token");
     } catch (error) {
-      // console.error("Error during logout:", error);
+      // logger.error("Error during logout:", error);
     } finally {
       setIsAuthenticated(false);
       setUser(null);
@@ -104,7 +106,7 @@ export async function isAuthenticated(): Promise<boolean> {
     const token = await SecureStore.getItemAsync("access_token");
     return !!token;
   } catch (error) {
-    // console.error("Error checking authentication:", error);
+    // logger.error("Error checking authentication:", error);
     return false;
   }
 }
@@ -116,7 +118,7 @@ export async function getAccessToken(): Promise<string | null> {
   try {
     return await SecureStore.getItemAsync("access_token");
   } catch (error) {
-    // console.error("Error retrieving access token:", error);
+    // logger.error("Error retrieving access token:", error);
     return null;
   }
 }
@@ -129,7 +131,7 @@ export async function hasCompletedOnboarding(): Promise<boolean> {
     const completed = await SecureStore.getItemAsync("onboarding_completed");
     return completed === "true";
   } catch (error) {
-    // console.error("Error checking onboarding status:", error);
+    // logger.error("Error checking onboarding status:", error);
     return false;
   }
 }
@@ -145,7 +147,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     }
     return null;
   } catch (error) {
-    // console.error("Error fetching user profile:", error);
+    // logger.error("Error fetching user profile:", error);
     return null;
   }
 }
@@ -158,7 +160,7 @@ export async function hasActiveSubscription(): Promise<boolean> {
     const profile = await getUserProfile();
     return profile?.has_paid ?? false;
   } catch (error) {
-    // console.error("Error checking subscription status:", error);
+    // logger.error("Error checking subscription status:", error);
     return false;
   }
 }
