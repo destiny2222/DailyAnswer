@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Daily Answer",
+    "name": "The Daily Answer",
     "slug": "DailyAnswer",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "dailyanswer",
+    "scheme": "thedailyanswer",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.destiny2222.DailyAnswer",
+      "bundleIdentifier": "com.thedailyanswer",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -25,12 +25,14 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "INTERNET",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
       ],
-      "package": "com.destiny2222.DailyAnswer"
+      "package": "com.thedailyanswer",
+      "versionCode": 9
     },
     "web": {
       "output": "static",
@@ -51,12 +53,20 @@
       [
         "@stripe/stripe-react-native",
         {
-          "merchantIdentifier": "merchant.dev.placeholder",
+          "merchantIdentifier": "merchant.com.thedailyanswer",
           "enableGooglePay": false
         }
       ],
       "expo-secure-store",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "allowBackup": false
+          }
+        }
+      ],
     ],
     "experiments": {
       "typedRoutes": true,
