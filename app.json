@@ -31,8 +31,7 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
       ],
-      "package": "com.thedailyanswer",
-      "versionCode": 9
+      "package": "com.thedailyanswer"
     },
     "web": {
       "output": "static",
@@ -66,7 +65,7 @@
             "allowBackup": false
           }
         }
-      ],
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
