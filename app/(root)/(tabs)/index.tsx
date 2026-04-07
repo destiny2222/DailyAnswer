@@ -251,7 +251,6 @@ export default function HomeScreen() {
 
         // Fetch all devotionals (today + previous)
         const allData = await fetchDevotionals();
-
         // Filter out today's devotional from the list to avoid duplication
         const previousDevotionals = todayData
           ? allData.filter(d => d.id !== todayData.id)
@@ -399,9 +398,9 @@ export default function HomeScreen() {
                 <View className="bg-slate-800 rounded-2xl px-4 py-3 flex-row items-center mb-6">
                   <Ionicons name="search" size={20} color="#9CA3AF" />
                   <TextInput
-                    placeholder="search for a spiritual topic"
+                    placeholder="Search for a spiritual topic"
                     placeholderTextColor="#9CA3AF"
-                    className="flex-1 ml-3 text-white text-base"
+                    className="flex-1 ml-2 text-white text-[12px] tracking-tighter p-0"
                   />
                 </View>
               </View>

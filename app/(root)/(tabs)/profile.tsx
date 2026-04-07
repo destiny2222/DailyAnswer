@@ -43,7 +43,7 @@ const Profile = () => {
   const [authenticated, setAuthenticated] = useState(false);
   const { user, setUser } = useGlobalContext();
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  //  console.log("User data in EditProfile:", user.profile_image_url);
+  
     useEffect(() => {
       if (user) {
         setProfileImage(user.profile_image_url);

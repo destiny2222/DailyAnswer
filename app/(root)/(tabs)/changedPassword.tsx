@@ -130,7 +130,6 @@ const changedPassword = () => {
         setShowConfirmPassword(false);
       }
     } catch (error: any) {
-      // console.error('Change password error:', error);
       
       const errorMessage = error?.data?.error || error?.message || 'An error occurred while changing password.';
       

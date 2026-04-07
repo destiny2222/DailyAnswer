@@ -47,7 +47,7 @@ const ManageSupport = () => {
           const plans = await getSupportPlans();
           setSupports(plans);
         } catch {
-          // console.error("Failed to fetch support plans:");
+         
         } finally {
           setInitialLoading(false);
         }

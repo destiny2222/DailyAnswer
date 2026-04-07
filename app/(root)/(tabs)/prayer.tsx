@@ -62,7 +62,7 @@ const PrayerScreen = () => {
       const data = await getPrayers();
       setPrayers(data || []);
     } catch (error) {
-      // console.error('Error loading prayers:', error);
+      
       setPrayers([]);
     } finally {
       setLoading(false);

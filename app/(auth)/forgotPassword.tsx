@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
 import { apiRequest } from "../../utils/api";
+import TurnstileWidget from "../../components/TurnstileWidget";
 
 const ForgotPassword = () => {
   const router = useRouter();
@@ -30,6 +31,7 @@ const ForgotPassword = () => {
     message: "",
     type: "success" as "success" | "error",
   });
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const handleSendOtp = async () => {
     if (!email) {
@@ -41,13 +43,26 @@ const ForgotPassword = () => {
       setAlertVisible(true);
       return;
     }
+
+    if (!turnstileToken) {
+      setAlertConfig({
+        title: "Security Check",
+        message: "Verify you are not a robot.",
+        type: "error",
+      });
+      setAlertVisible(true);
+      return;
+    }
     try {
       setLoading(true);
       const response = await apiRequest<{ success: boolean; message: string }>(
         "/send-reset-otp",
         {
           method: "POST",
-          body: { email },
+          body: { 
+            email,
+            "cf-turnstile-response": turnstileToken,
+          },
           auth: false,
         }
       );
@@ -188,6 +203,10 @@ const ForgotPassword = () => {
                     />
                   </View>
                 </View>
+
+                {/* Turnstile Widget */}
+                <TurnstileWidget onVerify={setTurnstileToken} />
+
                 <TouchableOpacity
                   onPress={handleSendOtp}
                   disabled={loading}

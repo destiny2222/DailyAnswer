@@ -28,7 +28,6 @@ export const getPrayers = async (): Promise<Prayer[]> => {
     const response = await apiRequest<Prayer[]>("/prayers");
     return response.data;
   } catch (error) {
-    // console.error("Error fetching prayers:", error);
     throw error;
   }
 };
@@ -41,7 +40,6 @@ export const createPrayer = async (data: CreatePrayerData): Promise<Prayer> => {
     });
     return response.data;
   } catch (error) {
-    // console.error("Error creating prayer:", error);
     throw error;
   }
 };
@@ -57,7 +55,6 @@ export const updatePrayer = async (
     });
     return response.data;
   } catch (error) {
-    // console.error("Error updating prayer:", error);
     throw error;
   }
 };
@@ -67,7 +64,6 @@ export const showPrayer = async (id: number): Promise<Prayer> => {
     const response = await apiRequest<Prayer>(`/prayers/${id}/show`);
     return response.data;
   } catch (error) {
-    // console.error("Error fetching prayer:", error);
     throw error;
   }
 };
@@ -78,7 +74,6 @@ export const deletePrayer = async (id: number): Promise<void> => {
       method: "DELETE",
     });
   } catch (error) {
-    // console.error("Error deleting prayer:", error);
     throw error;
   }
 };

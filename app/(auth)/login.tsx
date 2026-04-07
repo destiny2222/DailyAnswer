@@ -16,6 +16,19 @@ import {
 import CustomAlert from "../../components/CustomAlert";
 import { ApiError, apiRequest } from "../../utils/api";
 import { useGlobalContext } from "../../utils/auth";
+import TurnstileWidget from "../../components/TurnstileWidget";
+
+interface LoginResponse {
+  success: boolean;
+  token?: string;
+  otp_required?: boolean;
+  message?: string;
+}
+
+interface LoginVerifyResponse {
+  success: boolean;
+  token: string;
+}
 
 const Login = () => {
   const router = useRouter();
@@ -30,6 +43,10 @@ const Login = () => {
     message: "",
     type: "success" as "success" | "error",
   });
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [step, setStep] = useState<"form" | "otp">("form");
+  const [otp, setOtp] = useState("");
+  const [resendTimer, setResendTimer] = useState(0);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -42,20 +59,40 @@ const Login = () => {
       return;
     }
 
+    if (!turnstileToken) {
+      setAlertConfig({
+        title: "Security Check",
+        message: "Verify you are not a robot.",
+        type: "error",
+      });
+      setAlertVisible(true);
+      return;
+    }
+
     try {
       setLoading(true);
 
-      const response = await apiRequest<{ success: boolean; token: string }>(
-        "/login",
-        {
-          method: "POST",
-          body: {
-            email,
-            password,
-          },
-          auth: false,
+      const response = await apiRequest<LoginResponse>("/login", {
+        method: "POST",
+        body: {
+          email,
+          password,
+          "cf-turnstile-response": turnstileToken,
         },
-      );
+        auth: false,
+      });
+
+      if (response.otp_required) {
+        setAlertConfig({
+          title: "Verify Email",
+          message: response.message || "Please enter the OTP sent to your email.",
+          type: "success",
+        });
+        setAlertVisible(true);
+        setStep("otp");
+        startResendTimer();
+        return;
+      }
 
       if (response.success && response.token) {
         await SecureStore.setItemAsync("access_token", response.token);
@@ -89,6 +126,97 @@ const Login = () => {
     }
   };
 
+  const startResendTimer = () => {
+    setResendTimer(60);
+    const interval = setInterval(() => {
+      setResendTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleVerifyLoginOtp = async () => {
+    if (otp.length !== 6) {
+      setAlertConfig({
+        title: "Invalid OTP",
+        message: "Please enter a 6-digit code.",
+        type: "error",
+      });
+      setAlertVisible(true);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await apiRequest<LoginVerifyResponse>("/verify-login-otp", {
+        method: "POST",
+        body: { email, otp },
+        auth: false,
+      });
+
+      if (response.success && response.token) {
+        await SecureStore.setItemAsync("access_token", response.token);
+        await refetchUser();
+
+        setAlertConfig({
+          title: "Login Successful!",
+          message: "Welcome back",
+          type: "success",
+        });
+        setAlertVisible(true);
+
+        setTimeout(() => {
+          router.replace("/(root)/(tabs)");
+        }, 1500);
+      }
+    } catch (error: any) {
+     
+      const errorMessage = ApiError.getMessage(error);
+      setAlertConfig({
+        title: "Verification Failed",
+        message: errorMessage,
+        type: "error",
+      });
+      setAlertVisible(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+
+    try {
+      setLoading(true);
+      await apiRequest("/resend-otp", {
+        method: "POST",
+        body: { email, type: "login" },
+        auth: false,
+      });
+
+      setAlertConfig({
+        title: "OTP Resent",
+        message: "A new code has been sent to your email.",
+        type: "success",
+      });
+      setAlertVisible(true);
+      startResendTimer();
+    } catch (error: any) {
+      setAlertConfig({
+        title: "Error",
+        message: error?.message || "Failed to resend OTP.",
+        type: "error",
+      });
+      setAlertVisible(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View className="flex-1 bg-slate-900 pt-7">
       <StatusBar style="light" animated={true}/>
@@ -112,102 +240,147 @@ const Login = () => {
 
           {/* Form Section */}
           <View className="flex-1 px-6">
-            {/* Email Input */}
-            <View className="mb-4">
-              <Text className="text-white/80 text-sm font-semibold mb-2">
-                Email Address
-              </Text>
-              <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                <Ionicons name="mail-outline" size={20} color="#9CA3AF" />
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#9CA3AF"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  className="flex-1 ml-3 text-white text-base"
-                />
-              </View>
-            </View>
+            {step === "form" ? (
+              <>
+                {/* Email Input */}
+                <View className="mb-4">
+                  <Text className="text-white/80 text-sm font-semibold mb-2">
+                    Email Address
+                  </Text>
+                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
+                    <Ionicons name="mail-outline" size={20} color="#9CA3AF" />
+                    <TextInput
+                      value={email}
+                      onChangeText={setEmail}
+                      placeholder="Enter your email"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      className="flex-1 ml-3 text-white text-base"
+                    />
+                  </View>
+                </View>
 
-            {/* Password Input */}
-            <View className="mb-6">
-              <Text className="text-white/80 text-sm font-semibold mb-2">
-                Password
-              </Text>
-              <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#9CA3AF"
-                />
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoComplete="password"
-                  className="flex-1 ml-3 text-white text-base"
-                />
+                {/* Password Input */}
+                <View className="mb-6">
+                  <Text className="text-white/80 text-sm font-semibold mb-2">
+                    Password
+                  </Text>
+                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
+                    <Ionicons
+                      name="lock-closed-outline"
+                      size={20}
+                      color="#9CA3AF"
+                    />
+                    <TextInput
+                      value={password}
+                      onChangeText={setPassword}
+                      placeholder="Enter your password"
+                      placeholderTextColor="#9CA3AF"
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      autoComplete="password"
+                      className="flex-1 ml-3 text-white text-base"
+                    />
+                    <TouchableOpacity
+                      onPress={() => setShowPassword(!showPassword)}
+                      className="ml-2"
+                    >
+                      <Ionicons
+                        name={showPassword ? "eye-outline" : "eye-off-outline"}
+                        size={20}
+                        color="#9CA3AF"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Forgot Password */}
                 <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  className="ml-2"
+                  className="self-end mb-6"
+                  onPress={() => router.push('/(auth)/forgotPassword')}
                 >
-                  <Ionicons
-                    name={showPassword ? "eye-outline" : "eye-off-outline"}
-                    size={20}
-                    color="#9CA3AF"
-                  />
+                  <Text className="text-[#E94B7B] text-sm font-semibold">
+                    Forgot Password?
+                  </Text>
                 </TouchableOpacity>
-              </View>
-            </View>
 
-            {/* Forgot Password */}
-            <TouchableOpacity
-              className="self-end mb-6"
-              onPress={() => router.push('/(auth)/forgotPassword')}
-            >
-              <Text className="text-[#E94B7B] text-sm font-semibold">
-                Forgot Password?
-              </Text>
-            </TouchableOpacity>
+                {/* Turnstile Widget */}
+                <TurnstileWidget onVerify={setTurnstileToken} />
 
-            {/* Login Button */}
-            <TouchableOpacity
-              onPress={handleLogin}
-              disabled={loading}
-              activeOpacity={0.8}
-              className="mb-6 rounded-2xl bg-[#E94B7B] py-4 items-center justify-center"
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text className="text-white text-lg font-bold">Sign In</Text>
-              )}
-            </TouchableOpacity>
+                {/* Login Button */}
+                <TouchableOpacity
+                  onPress={handleLogin}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                  className="mb-6 rounded-2xl bg-[#E94B7B] py-4 items-center justify-center"
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text className="text-white text-lg font-bold">Sign In</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View className="mb-8">
+                  <Text className="text-white/80 text-sm font-semibold mb-4 text-center">
+                    Enter the 6-digit code sent to {email}
+                  </Text>
+                  <View className="bg-slate-800 rounded-2xl px-4 py-5 flex-row items-center justify-center">
+                    <Ionicons name="key-outline" size={24} color="#9CA3AF" />
+                    <TextInput
+                      value={otp}
+                      onChangeText={setOtp}
+                      placeholder="123456"
+                      placeholderTextColor="#4B5563"
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      className="ml-4 text-white text-3xl font-bold tracking-[10px] flex-1 text-center"
+                    />
+                  </View>
+                </View>
 
-            {/* Divider */}
-            {/* <View className="flex-row items-center mb-6">
-              <View className="flex-1 h-px bg-slate-700" />
-              <Text className="text-white/40 text-sm px-4">
-                or continue with
-              </Text>
-              <View className="flex-1 h-px bg-slate-700" />
-            </View> */}
+                <TouchableOpacity
+                  onPress={handleVerifyLoginOtp}
+                  disabled={loading || otp.length < 6}
+                  activeOpacity={0.8}
+                  className={`mb-6 rounded-2xl py-4 items-center justify-center ${otp.length === 6 ? 'bg-[#E94B7B]' : 'bg-slate-800'}`}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text className="text-white text-lg font-bold">
+                      Verify OTP
+                    </Text>
+                  )}
+                </TouchableOpacity>
 
-            {/* Social Login Buttons */}
-            {/* <View className="flex-row justify-center gap-4 mb-6">
-              <TouchableOpacity className="w-16 h-16 rounded-2xl bg-slate-800 items-center justify-center">
-                <Ionicons name="logo-google" size={24} color="#fff" />
-              </TouchableOpacity>
-            </View> */}
+                <View className="flex-row justify-center items-center mb-6">
+                  <Text className="text-white/60 text-base">Didn&apos;t receive code? </Text>
+                  <TouchableOpacity 
+                    onPress={handleResendOtp} 
+                    disabled={resendTimer > 0 || loading}
+                  >
+                    <Text className={`text-base font-semibold ${resendTimer > 0 ? 'text-white/30' : 'text-[#E94B7B]'}`}>
+                      {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity 
+                  onPress={() => setStep("form")} 
+                  className="items-center py-2"
+                >
+                  <Text className="text-white/60 text-sm">Change Credentials</Text>
+                </TouchableOpacity>
+              </>
+            )}
 
             {/* Sign Up Link */}
-            <View className="flex-row items-center justify-center pb-8">
+            <View className="flex-row items-center justify-center pb-8 mt-4">
               <Text className="text-white/60 text-base">
                 Don't have an account?{" "}
               </Text>

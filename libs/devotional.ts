@@ -31,7 +31,6 @@ export const fetchTodaysDevotional = async (): Promise<Devotional | null> => {
     const res = await apiRequest("/devotionals/today") as DevotionalDetailResponse;
     return res.data;
   } catch (error) {
-    // console.error("No devotional for today:", error);
     return null;
   }
 };
@@ -49,7 +48,6 @@ export const detailDevotional = async (id: string): Promise<Devotional> => {
     )) as DevotionalDetailResponse;
     return response.data;
   } catch (error) {
-    // console.error(`Error fetching devotional with id ${id}:`, error);
     throw error;
   }
 };
