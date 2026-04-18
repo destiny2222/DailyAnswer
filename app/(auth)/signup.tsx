@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Link, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
 import {
@@ -13,8 +14,9 @@ import {
   View,
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
-import { apiRequest } from "../../utils/api";
+import { ApiError, apiRequest } from "../../utils/api";
 import TurnstileWidget from "../../components/TurnstileWidget";
+import { useGlobalContext } from "../../utils/auth";
 
 interface RegisterResponse {
   success: boolean;
@@ -30,6 +32,7 @@ interface RegistrationVerifyResponse {
 
 const SignUp = () => {
   const router = useRouter();
+  const { refetchUser } = useGlobalContext();
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState(""); // Restored
   const [email, setEmail] = useState(""); // Restored
@@ -72,10 +75,10 @@ const SignUp = () => {
       return;
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       setAlertConfig({
         title: "Weak Password",
-        message: "Password must be at least 6 characters",
+        message: "Password must be at least 8 characters and include symbols",
         type: "error",
       });
       setAlertVisible(true);
@@ -132,9 +135,7 @@ const SignUp = () => {
         router.push("/(auth)/login");
       }, 2000);
     } catch (error: any) {
-      const errorMessage = error?.data?.errors
-        ? Object.values(error.data.errors).flat().join(", ")
-        : error?.message || "Sign up failed. Please try again.";
+      const errorMessage = ApiError.getMessage(error);
 
       setAlertConfig({
         title: "Registration Failed",
@@ -188,13 +189,14 @@ const SignUp = () => {
 
       if (response.token) {
         await SecureStore.setItemAsync("access_token", response.token);
+        await refetchUser();
       }
 
       setTimeout(() => {
         router.replace("/(root)/(tabs)");
       }, 2000);
     } catch (error: any) {
-      const errorMessage = error?.data?.message || error?.message || "Verification failed.";
+      const errorMessage = ApiError.getMessage(error);
       setAlertConfig({
         title: "Verification Failed",
         message: errorMessage,
@@ -225,14 +227,15 @@ const SignUp = () => {
       setAlertVisible(true);
       startResendTimer();
     } catch (error: any) {
+      const errorMessage = ApiError.getMessage(error);
       setAlertConfig({
         title: "Error",
-        message: error?.message || "Failed to resend OTP.",
+        message: errorMessage,
         type: "error",
       });
       setAlertVisible(true);
     } finally {
-      setLoading(false);
+      setLoading(false); 
     }
   };
 

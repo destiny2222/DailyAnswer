@@ -154,19 +154,19 @@ const Subscription = () => {
     }
   };
 
-  const handleRestorePurchases = async () => {
-    setIsRestoring(true);
-    setError(null);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setAlertConfig({
-      title: "Restoration Complete",
-      message: "Your purchases have been restored successfully.",
-      type: "error"
-    });
-    setAlertVisible(true);
-    setIsRestoring(false);
-  };
+  // const handleRestorePurchases = async () => {
+  //   setIsRestoring(true);
+  //   setError(null);
+  //   // Simulate API call
+  //   await new Promise((resolve) => setTimeout(resolve, 2000));
+  //   setAlertConfig({
+  //     title: "Restoration Complete",
+  //     message: "Your purchases have been restored successfully.",
+  //     type: "error"
+  //   });
+  //   setAlertVisible(true);
+  //   setIsRestoring(false);
+  // };
 
   const features = [
     "Support quality writing",
@@ -254,7 +254,7 @@ const Subscription = () => {
           </TouchableOpacity>
 
           {/* Restore Purchases */}
-          <View className="w-full bg-slate-800 rounded-xl p-4 items-center mb-6">
+          {/* <View className="w-full bg-slate-800 rounded-xl p-4 items-center mb-6">
             <TouchableOpacity
               onPress={handleRestorePurchases}
               disabled={isRestoring}
@@ -277,7 +277,7 @@ const Subscription = () => {
                 </TouchableOpacity>
               </View>
             )}
-          </View>
+          </View> */}
 
           {/* Legal */}
           <View className="items-center mb-6">
