@@ -29,15 +29,19 @@ type DevotionalDetailResponse = {
 export const fetchTodaysDevotional = async (): Promise<Devotional | null> => {
   try {
     const res = await apiRequest("/devotionals/today") as DevotionalDetailResponse;
+    // console.log("today devotional", res);
     return res.data;
   } catch (error) {
     return null;
   }
 };
 
-export const fetchDevotionals = async (): Promise<Devotional[]> => {
-  const res = (await apiRequest("/devotionals")) as DevotionalsResponse;
-  return Array.isArray(res?.data) ? res.data : [];
+export const fetchDevotionals = async (page = 1, perPage = 10): Promise<{ data: Devotional[]; meta?: any }> => {
+  const res = (await apiRequest(`/devotionals?page=${page}&per_page=${perPage}`)) as any;
+  return {
+    data: Array.isArray(res?.data) ? res.data : [],
+    meta: res?.meta
+  };
 };
 
 

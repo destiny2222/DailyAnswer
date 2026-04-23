@@ -18,6 +18,7 @@ import { useGlobalContext } from "@/utils/auth";
 import { createSubscription, getSubscriptionPlans, Plan, confirmPayment } from "@/libs/payment";
 import Toast from "react-native-toast-message";
 import CustomAlert from "@/components/CustomAlert";
+import { StatusBar } from "expo-status-bar";
 
 const Subscription = () => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
@@ -185,6 +186,7 @@ const Subscription = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
+      <StatusBar style="light" />
       <Stack.Screen options={{ 
         headerTitle: 'Subscription',
         headerBackTitle: 'Back',

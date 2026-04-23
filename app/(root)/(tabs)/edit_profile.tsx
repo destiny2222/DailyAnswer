@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import CustomAlert from '../../../components/CustomAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 
 const EditProfile = () => {
   const { user, setUser } = useGlobalContext();
@@ -168,6 +169,7 @@ const handleImageUpload = async (uri: string) => {
 
   return (
     <SafeAreaView className='flex-1 bg-gray-900' edges={['top']}>
+      <StatusBar style="light" />
     <ScrollView className="">
         <CustomAlert
             visible={alertInfo.visible}

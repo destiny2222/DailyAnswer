@@ -6,6 +6,7 @@ import React, { useEffect, useState } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isAuthenticated, useGlobalContext } from '../../../utils/auth';
+import { StatusBar } from 'expo-status-bar';
 
 interface SettingsItemProps {
   icon: ImageSourcePropType;
@@ -108,6 +109,7 @@ const Profile = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-[#101223]">
+      <StatusBar style="light" />
       <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerClassName="pb-32 px-2"
@@ -141,7 +143,7 @@ const Profile = () => {
         <View className="flex flex-col mt-10">
           <SettingsItem icon={icons.person}  title="Profile" onPress={() => router.push('/edit_profile')}/>
           <SettingsItem icon={icons.bell}  title='Subscription' onPress={() => router.push('/subscription')}/>
-          <SettingsItem icon={icons.dumbell} title='Manage Support' onPress={() => router.push('/ManageSupport')}/>
+          <SettingsItem icon={icons.dumbell} title='Donation' onPress={() => router.push('/ManageSupport')}/>
           <SettingsItem icon={icons.language}  title="Memory Verse" onPress={() => router.push('/memory')} />
           <SettingsItem icon={icons.file}  title="Notes" onPress={() => router.push('/note')} />
           <SettingsItem icon={icons.shield}  title="Prayers" onPress={() => router.push('/prayer')}/>

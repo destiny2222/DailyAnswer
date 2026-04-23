@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createNote, deleteNote, getNote, updateNote } from '../../libs/note';
+import { StatusBar } from 'expo-status-bar';
 
 const NoteDetailScreen = () => {
   const { id } = useLocalSearchParams();
@@ -126,6 +127,7 @@ const NoteDetailScreen = () => {
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-gray-900">
+      <StatusBar style="light" />
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-700">
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={28} color="#ccc" />

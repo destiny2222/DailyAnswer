@@ -1,20 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   ActivityIndicator,
   Dimensions,
   FlatList,
   Image,
   ImageBackground,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import imgThree from "../../../assets/images/onboarding/img-three.jpeg";
+import book from "@/assets/images/devotion.jpg";
 import { fetchMemories, Memory } from "../../../libs/memories";
 import { fetchDevotionals, Devotional, fetchTodaysDevotional } from "../../../libs/devotional";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -148,7 +149,7 @@ export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
         </View>
         <View className="rounded-lg overflow-hidden">
           <Image
-            source={{ uri: item.image }}
+            source={item.image ? { uri: item.image } : book}
             className="w-32 h-32 rounded-lg"
           />
         </View>
@@ -164,6 +165,7 @@ export default function HomeScreen() {
   const [devotionals, setDevotionals] = useState < Devotional[] > ([]);
   const [loading, setLoading] = useState(true);
   const [devotionalsLoading, setDevotionalsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const { width } = Dimensions.get("window");
   const memoryListRef = useRef < FlatList > (null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
@@ -171,6 +173,9 @@ export default function HomeScreen() {
   const [name, setName] = useState('');
   const [profileImageUrl, setProfileImageUrl] = useState('');
   const [todaysDevotional, setTodaysDevotional] = useState < Devotional | null > (null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const getTimeOfDay = () => {
     const hour = new Date().getHours();
@@ -228,57 +233,97 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, [quotesOfTheDay.length]);
 
-  useEffect(() => {
-    const loadMemories = async () => {
-      try {
-        setLoading(true);
-        const memories = await fetchMemories();
-        setQuotesOfTheDay(memories);
-      } catch (e) {
-        // logger.error("Failed to load memories:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadMemories = async (isRefreshing = false) => {
+    try {
+      if (!isRefreshing) setLoading(true);
+      const memories = await fetchMemories();
+      setQuotesOfTheDay(memories);
+    } catch (e) {
+      // logger.error("Failed to load memories:", e);
+    } finally {
+      if (!isRefreshing) setLoading(false);
+    }
+  };
 
-    const loadDevotionals = async () => {
-      try {
+  const loadDevotionals = async (isRefreshing = false, pageNumber = 1) => {
+    try {
+      if (isRefreshing) {
+        setPage(1);
+        setHasMore(true);
+      } else if (pageNumber > 1) {
+        setLoadingMore(true);
+      } else {
         setDevotionalsLoading(true);
+      }
 
-        // Fetch today's devotional
+      // Fetch today's devotional only on the first page load/refresh
+      if (pageNumber === 1) {
         const todayData = await fetchTodaysDevotional();
         setTodaysDevotional(todayData);
-
-        // Fetch all devotionals (today + previous)
-        const allData = await fetchDevotionals();
-        // Filter out today's devotional from the list to avoid duplication
-        const previousDevotionals = todayData
-          ? allData.filter(d => d.id !== todayData.id)
-          : allData;
-
-        setDevotionals(previousDevotionals);
-      } catch (e) {
-        // logger.error("Failed to load devotionals:", e);
-      } finally {
-        setDevotionalsLoading(false);
       }
-    };
 
+      // Fetch devotionals for the specific page
+      const response = await fetchDevotionals(pageNumber, 10);
+      const allData = response.data;
+
+      // Check if we've reached the end (Laravel pagination meta)
+      if (response.meta.current_page >= response.meta.last_page) {
+        setHasMore(false);
+      }
+
+      // Filter out today's devotional to avoid duplication
+      const filteredNewData = todaysDevotional
+        ? allData.filter(d => d.id !== todaysDevotional.id)
+        : allData;
+
+      setDevotionals(prev =>
+        pageNumber === 1 ? filteredNewData : [...prev, ...filteredNewData]
+      );
+
+    } catch (e) {
+    } finally {
+      setDevotionalsLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      loadDevotionals(false, nextPage);
+    }
+  };
+
+  useEffect(() => {
     loadMemories();
     loadDevotionals();
   }, []);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        loadMemories(true),
+        loadDevotionals(true)
+      ]);
+    } catch (error) {
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   const handleDevotionalPress = async (devotion: DevotionItem) => {
-    const accessStatus = await canAccessPremiumContent();
+    const accessStatus = await canAccessPremiumContent(devotion.date);
 
     if (!accessStatus.isAuthenticated) {
       // logger.info("User not authenticated, showing auth modal.");
       setShowAuthModal(true);
-    } else if (!accessStatus.hasSubscription) {
+    } else if (!accessStatus.canAccess) {
       // logger.info("User not subscribed, showing subscription modal.");
       setShowSubscriptionModal(true);
     } else {
-      // User is authenticated and has subscription, navigate to devotional detail
+      // User is authenticated and has subscription or access to past content, navigate to devotional detail
       router.push(`/devotional/${devotion.id}`);
     }
   };
@@ -298,6 +343,17 @@ export default function HomeScreen() {
           data={devotionals}
           keyExtractor={(item) => String(item.id)}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1 }}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#E94B7B"
+              colors={["#E94B7B"]}
+            />
+          }
           renderItem={({ item, index }) => (
             <View className="px-6">
               <DevotionCard
@@ -319,7 +375,7 @@ export default function HomeScreen() {
                       Good {getTimeOfDay()}!
                     </Text>
                     <Text className="text-white text-2xl font-bold mt-1">
-                      {name || 'Anonymous User'}
+                      {name.slice(0, 10) || 'Anonymous User'}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -387,8 +443,8 @@ export default function HomeScreen() {
                     <View
                       key={String(index)}
                       className={`h-2 rounded-full mx-1 ${index === currentQuoteIndex
-                          ? "w-6 bg-[#E94B7B]"
-                          : "w-2 bg-slate-700"
+                        ? "w-6 bg-[#E94B7B]"
+                        : "w-2 bg-slate-700"
                         }`}
                     />
                   ))}
@@ -400,7 +456,7 @@ export default function HomeScreen() {
                   <TextInput
                     placeholder="Search for a spiritual topic"
                     placeholderTextColor="#9CA3AF"
-                    className="flex-1 ml-2 text-white text-[12px] tracking-tighter p-0"
+                    className="flex-1 ml-2 text-white text-[12px] tracking-tighter p-3"
                   />
                 </View>
               </View>
@@ -418,7 +474,7 @@ export default function HomeScreen() {
                     activeOpacity={0.8}
                   >
                     <Image
-                      source={{ uri: todaysDevotional.image }}
+                      source={todaysDevotional.image ? { uri: todaysDevotional.image } : book}
                       className="w-full h-56"
                       resizeMode="cover"
                     />
@@ -461,9 +517,12 @@ export default function HomeScreen() {
                     Previous Devotionals
                   </Text>
                   <TouchableOpacity onPress={() => router.push('/resources')}>
-                    <Text className="text-[#E94B7B] text-sm font-semibold">
-                      See all
-                    </Text>
+                    <View className="flex-row items-center">
+                      <Text className="text-[#E94B7B] text-sm font-semibold mr-1">
+                        See all
+                      </Text>
+                      <Ionicons name="chevron-forward" size={16} color="#E94B7B" />
+                    </View>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -476,7 +535,15 @@ export default function HomeScreen() {
               </Text>
             </View>
           }
-          ListFooterComponent={<View className="h-20" />}
+          ListFooterComponent={
+            loadingMore ? (
+              <View className="py-6">
+                <ActivityIndicator color="#E94B7B" />
+              </View>
+            ) : (
+              <View className="h-20" />
+            )
+          }
         />
       )}
       <AuthGuardModal visible={showAuthModal} onClose={() => setShowAuthModal(false)} />

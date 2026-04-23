@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isAuthenticated } from '../../../utils/auth';
 import { getNotes, Note } from '../../../libs/note';
+import { StatusBar } from 'expo-status-bar';
 
 const NotesScreen = () => {
   const router = useRouter();
@@ -87,6 +88,7 @@ const NotesScreen = () => {
 
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-gray-900">
+      <StatusBar style="light" />
        <AuthGuardModal visible={modalVisible} onClose={() => setModalVisible(false)} />
       <View className="px-4 pt-4 pb-3 bg-gray-900">
         <View className="flex-row items-center justify-between mb-4">
@@ -123,14 +125,14 @@ const NotesScreen = () => {
             <View className="flex-1 items-center justify-center mt-20 bg-gray-900">
               <Ionicons name="document-text-outline" size={64} color="#666" />
               <Text className="text-gray-500 mt-4 text-lg">No notes yet</Text>
-              <Text className="text-gray-400 mt-1">Tap the '+' button to create one.</Text>
+              <Text className="text-gray-400 mt-1">Tap the &apos;+&apos; button to create one.</Text>
             </View>
           }
         />
       )}
 
       <TouchableOpacity
-        className="absolute bottom-24 right-6 bg-[#E94B7B] w-16 h-16 rounded-full items-center justify-center shadow-lg"
+        className="absolute bottom-40 right-6 bg-[#E94B7B] w-16 h-16 rounded-full items-center justify-center shadow-lg"
         onPress={() => router.push('/note/create')}
       >
         <Ionicons name="add" size={32} color="white" />

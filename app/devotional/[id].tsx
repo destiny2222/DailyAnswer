@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { detailDevotional, Devotional } from '../../libs/devotional';
+import { StatusBar } from 'expo-status-bar';
 
 const DevotionalDetail = () => {
   const { id } = useLocalSearchParams();
@@ -201,6 +202,7 @@ const DevotionalDetail = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
+      <StatusBar style="dark" />
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
         <TouchableOpacity onPress={() => {

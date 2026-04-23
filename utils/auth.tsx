@@ -168,7 +168,7 @@ export async function hasActiveSubscription(): Promise<boolean> {
 /**
  * Check both authentication and subscription status
  */
-export async function canAccessPremiumContent(): Promise<{
+export async function canAccessPremiumContent(devotionalDate?: string | Date): Promise<{
   isAuthenticated: boolean;
   hasSubscription: boolean;
   canAccess: boolean;
@@ -183,11 +183,31 @@ export async function canAccessPremiumContent(): Promise<{
     };
   }
 
-  const hasSubscription = await hasActiveSubscription();
+  const profile = await getUserProfile();
+  const activeSubscription = profile?.has_paid ?? false;
+  
+  let canAccess = activeSubscription;
+  
+  // If no active subscription, check if it's a past devotional from a period when they were active
+  if (!activeSubscription && devotionalDate && profile?.payment_expires_at) {
+    try {
+      const devDate = new Date(devotionalDate);
+      const expiryDate = new Date(profile.payment_expires_at);
+      
+      // Set hours to 0 to compare just the date if needed, 
+      // but usually the expiry date is the end of the day or exact time.
+      // If devotional date is less than or equal to expiry date, allow access.
+      if (!isNaN(devDate.getTime()) && !isNaN(expiryDate.getTime())) {
+        canAccess = devDate.getTime() <= expiryDate.getTime();
+      }
+    } catch (e) {
+      // If date parsing fails, fall back to activeSubscription status
+    }
+  }
 
   return {
     isAuthenticated: true,
-    hasSubscription,
-    canAccess: hasSubscription,
+    hasSubscription: activeSubscription,
+    canAccess,
   };
 }

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import icons from '../../../constants/icons';
+import { StatusBar } from 'expo-status-bar';
 
 const SupportItem = ({ icon, title, onPress }) => (
   <TouchableOpacity
@@ -153,6 +154,7 @@ const Security = () => {
   
     return (
       <SafeAreaView className="flex-1 bg-slate-900">
+        <StatusBar style="light" />
         <View className="flex-row items-center px-4 py-3 border-b border-gray-700">
           <TouchableOpacity onPress={() => router.back()} className="p-2">
             <Ionicons name="arrow-back" size={24} color="white" />
