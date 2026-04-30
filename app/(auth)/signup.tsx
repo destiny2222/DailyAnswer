@@ -38,6 +38,7 @@ const SignUp = () => {
   const [email, setEmail] = useState(""); // Restored
   const [password, setPassword] = useState(""); // Restored
   const [confirmPassword, setConfirmPassword] = useState(""); // Restored
+  const [referralCode, setReferralCode] = useState(""); // New field
   const [showPassword, setShowPassword] = useState(false); // Restored
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -106,6 +107,7 @@ const SignUp = () => {
           username,
           password,
           password_confirmation: confirmPassword,
+          referral_code: referralCode,
           "cf-turnstile-response": turnstileToken,
         },
         auth: false,
@@ -345,7 +347,7 @@ const SignUp = () => {
                 </View>
 
                 {/* Confirm Password Input */}
-                <View className="mb-6">
+                <View className="mb-4">
                   <Text className="text-white/80 text-sm font-semibold mb-2">
                     Confirm Password
                   </Text>
@@ -377,6 +379,24 @@ const SignUp = () => {
                         color="#9CA3AF"
                       />
                     </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Referral Code Input */}
+                <View className="mb-6">
+                  <Text className="text-white/80 text-sm font-semibold mb-2">
+                    Referral Code (Optional)
+                  </Text>
+                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
+                    <Ionicons name="gift-outline" size={20} color="#9CA3AF" />
+                    <TextInput
+                      value={referralCode}
+                      onChangeText={setReferralCode}
+                      placeholder="Enter referral code"
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="characters"
+                      className="flex-1 ml-3 text-white text-base"
+                    />
                   </View>
                 </View>
 

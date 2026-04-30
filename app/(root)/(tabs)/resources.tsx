@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { logger } from "../../../utils/logger";
 import { StatusBar } from 'expo-status-bar';
 import book from "@/assets/images/devotion.jpg";
+import { formatDateShort } from "../../../utils/date";
 
 type DevotionItem = {
   id: number | string;
@@ -55,18 +56,7 @@ const formatContent = (html: string) => {
 };
 
 export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
-  const formatDate = (date: Date | string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    };
-    if (date instanceof Date) {
-      return date.toLocaleDateString("en-US", options);
-    }
-    return new Date(date).toLocaleDateString("en-US", options);
-  };
+
 
   return (
     <TouchableOpacity
@@ -78,7 +68,7 @@ export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
       <View className="p-4">
         <View className="flex-row justify-between items-center mb-2">
           <Text className="text-gray-500 text-xs">
-            {formatDate(item.date)}
+            {formatDateShort(item.date)}
           </Text>
           <Ionicons name="checkmark-done-circle-outline" size={18} color="#4CAF50" />
         </View>
@@ -116,9 +106,11 @@ export default function ResourcesScreen() {
         setHasMore(true); // Reset this on a fresh load
       }
 
+      let todayToFilter = todaysDevotional;
       if (pageNumber === 1) {
         const todayData = await fetchTodaysDevotional();
         setTodaysDevotional(todayData);
+        todayToFilter = todayData;
       }
 
       // Using 15 or 20 is usually better for mobile performance than 50
@@ -127,8 +119,8 @@ export default function ResourcesScreen() {
       if (meta?.total) setTotal(meta.total);
 
       // Filter out today's devotional to avoid showing it twice in the list
-      const filteredNewData = todaysDevotional
-        ? allData.filter(d => d.id !== todaysDevotional.id)
+      const filteredNewData = todayToFilter
+        ? allData.filter(d => d.id !== todayToFilter.id)
         : allData;
 
       setDevotionals(prev => {

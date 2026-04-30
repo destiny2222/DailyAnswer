@@ -65,6 +65,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   const headers: Record<string, string> = {
     Accept: "application/json",
+    "X-Api-Token": process.env.EXPO_PUBLIC_API_ACCESS_TOKEN || "",
     ...(options.headers ?? {}),
   };
 

@@ -29,7 +29,6 @@ type DevotionalDetailResponse = {
 export const fetchTodaysDevotional = async (): Promise<Devotional | null> => {
   try {
     const res = await apiRequest("/devotionals/today") as DevotionalDetailResponse;
-    // console.log("today devotional", res);
     return res.data;
   } catch (error) {
     return null;

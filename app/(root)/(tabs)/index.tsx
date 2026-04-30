@@ -1,13 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   Dimensions,
   FlatList,
   Image,
   ImageBackground,
+  Keyboard,
   RefreshControl,
   ScrollView,
   Text,
@@ -25,6 +26,7 @@ import AuthGuardModal from "@/components/AuthGuardModal";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import * as SecureStore from 'expo-secure-store';
 import { logger } from "../../../utils/logger";
+import { formatDateShort } from "../../../utils/date";
 
 type MemoryItem = {
   id: number | string;
@@ -122,13 +124,6 @@ interface DevotionCardProps {
 }
 
 export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
-  const formatDate = (date: Date | string) => {
-    if (date instanceof Date) {
-      return date.toDateString();
-    }
-    return new Date(date).toDateString();
-  };
-
   return (
     <TouchableOpacity
       onPress={() => onPress?.(item)}
@@ -144,7 +139,7 @@ export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
             {formatContent(item.content.slice(0, 100))}...
           </Text>
           <Text className="text-slate-400 text-xs">
-            {formatDate(item.date)}
+            {formatDateShort(item.date)}
           </Text>
         </View>
         <View className="rounded-lg overflow-hidden">
@@ -176,6 +171,19 @@ export default function HomeScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredDevotionals = useMemo(() => {
+    if (!searchQuery.trim()) return devotionals;
+    const query = searchQuery.toLowerCase().trim();
+    return devotionals.filter(
+      (d) =>
+        d.title?.toLowerCase().includes(query) ||
+        d.content?.toLowerCase().includes(query) ||
+        d.verses?.toLowerCase().includes(query) ||
+        d.key_verse?.toLowerCase().includes(query)
+    );
+  }, [devotionals, searchQuery]);
 
   const getTimeOfDay = () => {
     const hour = new Date().getHours();
@@ -256,10 +264,12 @@ export default function HomeScreen() {
         setDevotionalsLoading(true);
       }
 
+      let todayToFilter = todaysDevotional;
       // Fetch today's devotional only on the first page load/refresh
       if (pageNumber === 1) {
         const todayData = await fetchTodaysDevotional();
         setTodaysDevotional(todayData);
+        todayToFilter = todayData;
       }
 
       // Fetch devotionals for the specific page
@@ -267,13 +277,13 @@ export default function HomeScreen() {
       const allData = response.data;
 
       // Check if we've reached the end (Laravel pagination meta)
-      if (response.meta.current_page >= response.meta.last_page) {
+      if (response?.meta && response.meta.current_page >= response.meta.last_page) {
         setHasMore(false);
       }
 
       // Filter out today's devotional to avoid duplication
-      const filteredNewData = todaysDevotional
-        ? allData.filter(d => d.id !== todaysDevotional.id)
+      const filteredNewData = todayToFilter
+        ? allData.filter(d => d.id !== todayToFilter.id)
         : allData;
 
       setDevotionals(prev =>
@@ -340,10 +350,12 @@ export default function HomeScreen() {
         </View>
       ) : (
         <FlatList
-          data={devotionals}
+          data={filteredDevotionals}
           keyExtractor={(item) => String(item.id)}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           refreshControl={
@@ -405,6 +417,7 @@ export default function HomeScreen() {
                     data={quotesOfTheDay}
                     keyExtractor={(item) => item.id}
                     showsHorizontalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                     contentContainerClassName="mb-6"
                     pagingEnabled
                     onScrollToIndexFailed={(info) => {
@@ -438,17 +451,19 @@ export default function HomeScreen() {
                 )}
 
                 {/* Quote Indicators */}
-                <View className="flex-row items-center justify-center mb-6">
-                  {quotesOfTheDay.map((_, index) => (
-                    <View
-                      key={String(index)}
-                      className={`h-2 rounded-full mx-1 ${index === currentQuoteIndex
-                        ? "w-6 bg-[#E94B7B]"
-                        : "w-2 bg-slate-700"
-                        }`}
-                    />
-                  ))}
-                </View>
+                {quotesOfTheDay.length > 0 && (
+                  <View className="flex-row items-center justify-center mb-6">
+                    {quotesOfTheDay.map((_, index) => (
+                      <View
+                        key={String(index)}
+                        className={`h-2 rounded-full mx-1 ${index === currentQuoteIndex
+                          ? "w-6 bg-[#E94B7B]"
+                          : "w-2 bg-slate-700"
+                          }`}
+                      />
+                    ))}
+                  </View>
+                )}
 
                 {/* Search Bar */}
                 <View className="bg-slate-800 rounded-2xl px-4 py-3 flex-row items-center mb-6">
@@ -457,7 +472,18 @@ export default function HomeScreen() {
                     placeholder="Search for a spiritual topic"
                     placeholderTextColor="#9CA3AF"
                     className="flex-1 ml-2 text-white text-[12px] tracking-tighter p-3"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    returnKeyType="search"
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    onSubmitEditing={() => Keyboard.dismiss()}
                   />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => { setSearchQuery(''); Keyboard.dismiss(); }}>
+                      <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
 
