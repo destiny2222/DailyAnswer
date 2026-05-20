@@ -185,12 +185,22 @@ export default function HomeScreen() {
     );
   }, [devotionals, searchQuery]);
 
-  const getTimeOfDay = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Morning';
-    if (hour < 18) return 'Afternoon';
-    return 'Evening';
-  };
+ const getTimeOfDay = (timeZone = 'Africa/Lagos') => {
+  const hour = Number(
+    new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      hour12: false,
+      timeZone,
+    }).format(new Date())
+  );
+
+  if (hour < 12) return 'Morning';
+  if (hour < 18) return 'Afternoon';
+  return 'Evening';
+};
+
+const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const greeting = getTimeOfDay(userTimeZone);
 
   const stripHtml = (html: string) =>
     html
@@ -384,7 +394,7 @@ export default function HomeScreen() {
                 <View className="flex-row items-center justify-between mb-6">
                   <View>
                     <Text className="text-white/70 text-sm">
-                      Good {getTimeOfDay()}!
+                      Good {greeting}!
                     </Text>
                     <Text className="text-white text-2xl font-bold mt-1">
                       {name.split(' ')[0] || 'Anonymous User'}
