@@ -16,7 +16,7 @@ import {
 import CustomAlert from "../../components/CustomAlert";
 import { ApiError, apiRequest } from "../../utils/api";
 import { useGlobalContext } from "../../utils/auth";
-import TurnstileWidget from "../../components/TurnstileWidget";
+import RecaptchaWidget from "../../components/RecaptchaWidget";
 
 interface LoginResponse {
   success: boolean;
@@ -43,7 +43,7 @@ const Login = () => {
     message: "",
     type: "success" as "success" | "error",
   });
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "otp">("form");
   const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
@@ -59,7 +59,7 @@ const Login = () => {
       return;
     }
 
-    if (!turnstileToken) {
+    if (!recaptchaToken) {
       setAlertConfig({
         title: "Security Check",
         message: "Verify you are not a robot.",
@@ -77,7 +77,7 @@ const Login = () => {
         body: {
           email,
           password,
-          "cf-turnstile-response": turnstileToken,
+          "g-recaptcha-response": recaptchaToken,
         },
         auth: false,
       });
@@ -307,7 +307,7 @@ const Login = () => {
                 </TouchableOpacity>
 
                 {/* Turnstile Widget */}
-                <TurnstileWidget onVerify={setTurnstileToken} />
+                <RecaptchaWidget onVerify={setRecaptchaToken} />
 
                 {/* Login Button */}
                 <TouchableOpacity
@@ -339,6 +339,9 @@ const Login = () => {
                       keyboardType="number-pad"
                       maxLength={6}
                       className="ml-4 text-white text-3xl font-bold tracking-[10px] flex-1 text-center"
+                      textContentType="oneTimeCode"
+                      autoComplete="one-time-code"
+                      autoFocus={true}
                     />
                   </View>
                 </View>

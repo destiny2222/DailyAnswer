@@ -1,17 +1,16 @@
+import book from "@/assets/images/devotion.jpg";
 import AuthGuardModal from '@/components/AuthGuardModal';
 import SubscriptionModal from '@/components/SubscriptionModal';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Text, TextInput, TouchableOpacity, View, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Devotional, fetchDevotionals, fetchTodaysDevotional } from "../../../libs/devotional";
-import { canAccessPremiumContent } from '../../../utils/auth';
 import TopNav from '@/components/topNav';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { logger } from "../../../utils/logger";
+import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import book from "@/assets/images/devotion.jpg";
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, RefreshControl, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Devotional, fetchDevotionals, fetchTodaysDevotional, fetchUpcomingDevotionals } from "../../../libs/devotional";
+import { canAccessPremiumContent } from '../../../utils/auth';
 import { formatDateShort } from "../../../utils/date";
 
 type DevotionItem = {
@@ -114,11 +113,11 @@ export default function ResourcesScreen() {
       }
 
       // Using 15 or 20 is usually better for mobile performance than 50
-      const { data: allData, meta } = await fetchDevotionals(pageNumber, 15);
+      const { data: allData, meta } = await fetchUpcomingDevotionals(pageNumber, 15);
 
       if (meta?.total) setTotal(meta.total);
 
-      // Filter out today's devotional to avoid showing it twice in the list
+      // Filter out today's devotional to avoid showing it in both sections
       const filteredNewData = todayToFilter
         ? allData.filter(d => d.id !== todayToFilter.id)
         : allData;
@@ -284,13 +283,13 @@ export default function ResourcesScreen() {
                 </View>
               )}
 
-              {/* Previous Devotionals Header */}
+              {/* Upcoming Devotionals Header */}
               <View className="mb-4">
                 <Text className="text-white text-xl font-bold">
-                  Previous Devotionals
+                  Upcoming Devotionals
                 </Text>
                 <Text className="text-gray-500 text-sm mt-1">
-                  Browse past daily devotionals
+                  Browse upcoming daily devotionals
                 </Text>
               </View>
             </View>
@@ -299,7 +298,7 @@ export default function ResourcesScreen() {
             <View className="py-12 items-center">
               <Ionicons name="book-outline" size={56} color="#9CA3AF" />
               <Text className="text-gray-400 text-base mt-4">
-                No previous devotionals available
+                No upcoming devotionals available
               </Text>
             </View>
           }

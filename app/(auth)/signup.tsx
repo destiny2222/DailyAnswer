@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
 import { ApiError, apiRequest } from "../../utils/api";
-import TurnstileWidget from "../../components/TurnstileWidget";
+import RecaptchaWidget from "../../components/RecaptchaWidget";
 import { useGlobalContext } from "../../utils/auth";
 
 interface RegisterResponse {
@@ -48,7 +48,7 @@ const SignUp = () => {
     message: "",
     type: "success" as "success" | "error",
   });
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "otp">("form");
   const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
@@ -86,7 +86,7 @@ const SignUp = () => {
       return;
     }
 
-    if (!turnstileToken) {
+    if (!recaptchaToken) {
       setAlertConfig({
         title: "Security Check",
         message: "Verify you are not a robot.",
@@ -108,7 +108,7 @@ const SignUp = () => {
           password,
           password_confirmation: confirmPassword,
           referral_code: referralCode,
-          "cf-turnstile-response": turnstileToken,
+          "g-recaptcha-response": recaptchaToken,
         },
         auth: false,
       });
@@ -401,7 +401,7 @@ const SignUp = () => {
                 </View>
 
                 {/* Turnstile Widget */}
-                <TurnstileWidget onVerify={setTurnstileToken} />
+                <RecaptchaWidget onVerify={setRecaptchaToken} />
 
                 {/* Sign Up Button */}
                 <TouchableOpacity

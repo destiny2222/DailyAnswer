@@ -1,10 +1,11 @@
 import book from '@/assets/images/devotion.jpg';
+import { formatDateLong } from '@/utils/date';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -15,10 +16,47 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { detailDevotional } from '../../libs/devotional';
-import { formatDateLong } from '@/utils/date';
+
+const stripHtml = (html: string) =>
+  html
+    ?.replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+
+const formatContent = (html: string) => {
+  if (!html) return '';
+
+  let formatted = html
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .trim();
+
+  return formatted;
+};
+
+const preprocessForSpeech = (text: string) => {
+  if (!text) return '';
+  return text
+    // Replace colons in scripture references (e.g., 34:19 or 34 : 19) with a space and "verse"
+    // We add spaces around it to ensure the TTS engine treats it as a word, not a time
+    .replace(/(\d+)\s*:\s*(\d+)/g, '$1 verse $2')
+    // Ensure small pauses after commas and periods
+    .replace(/,/g, ', ')
+    .replace(/\./g, '. ')
+    // Clean up multiple spaces
+    .replace(/\s\s+/g, ' ')
+    .trim();
+};
 
 const DevotionalDetail = () => {
   const { id } = useLocalSearchParams();
@@ -31,6 +69,12 @@ const DevotionalDetail = () => {
   const [isBold, setIsBold] = useState(false);
   const [fontSize, setFontSize] = useState(18);
 
+  // Audio state management
+  const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
+  const chunksRef = useRef<string[]>([]);
+  const isSpeakingRef = useRef(false);
+  const isPausedRef = useRef(false);
+
   useEffect(() => {
     loadDevotional();
     setupAudio();
@@ -38,6 +82,7 @@ const DevotionalDetail = () => {
     return () => {
       // Cleanup speech when component unmounts
       Speech.stop();
+      isSpeakingRef.current = false;
     };
   }, [id]);
 
@@ -69,28 +114,6 @@ const DevotionalDetail = () => {
 
 
 
-  const stripHtml = (html: string) =>
-    html
-      ?.replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .trim();
-
-  const formatContent = (html: string) => {
-    if (!html) return '';
-
-    let formatted = html
-      .replace(/<\/p>/gi, '\n\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .trim();
-
-    return formatted;
-  };
 
   const handleShare = async () => {
     if (!devotional) return;
@@ -103,61 +126,101 @@ const DevotionalDetail = () => {
     }
   };
 
-  const getFullText = () => {
-    if (!devotional) return '';
+  const getFullTextChunks = () => {
+    if (!devotional) return [];
 
-    const parts = [
+    const rawParts = [
       devotional.title,
-      devotional.subheading && `${devotional.subheading}`,
-      devotional.key_verse && `Key Verse: ${devotional.key_verse}`,
+      devotional.subheading,
+      devotional.key_verse ? `Key Verse: ${devotional.key_verse}` : null,
       formatContent(devotional.content),
-      devotional.application_note && formatContent(devotional.application_note),
-      devotional.verses && `Scripture References: ${formatContent(devotional.verses)}`,
-      devotional.prayer_note && formatContent(devotional.prayer_note),
-    ].filter(Boolean);
+      devotional.application_note ? `Application: ${formatContent(devotional.application_note)}` : null,
+      devotional.verses ? `Scripture References: ${formatContent(devotional.verses)}` : null,
+      devotional.prayer_note ? `Prayer: ${formatContent(devotional.prayer_note)}` : null,
+    ].filter(Boolean) as string[];
 
-    return parts.join('. ');
+    const chunks: string[] = [];
+    rawParts.forEach(part => {
+      const processed = preprocessForSpeech(part);
+      // Split by paragraph first, then by sentence if still too long
+      const paragraphs = processed.split(/\n\n+/);
+      
+      paragraphs.forEach(p => {
+        const trimmedP = p.trim();
+        if (trimmedP) {
+          if (trimmedP.length > 500) {
+            const sentences = trimmedP.split(/(?<=[.!?])\s+/);
+            sentences.forEach(s => {
+              const trimmedS = s.trim();
+              if (trimmedS) chunks.push(trimmedS);
+            });
+          } else {
+            chunks.push(trimmedP);
+          }
+        }
+      });
+    });
+
+    return chunks;
+  };
+
+  const speakChunk = (index: number) => {
+    if (index >= chunksRef.current.length) {
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      return;
+    }
+
+    setCurrentChunkIndex(index);
+    
+    Speech.speak(chunksRef.current[index], {
+      language: 'en-US',
+      pitch: 1.0,
+      rate: 0.9,
+      onStart: () => {
+        setIsSpeaking(true);
+        isSpeakingRef.current = true;
+      },
+      onDone: () => {
+        if (isSpeakingRef.current && !isPausedRef.current) {
+          speakChunk(index + 1);
+        }
+      },
+      onError: (err) => {
+        setIsSpeaking(false);
+        isSpeakingRef.current = false;
+      }
+    });
   };
 
   const handlePlayPause = async () => {
     if (!devotional) return;
 
     if (isSpeaking && !isPaused) {
-      // Pause
-      Speech.pause();
+      if (Platform.OS === 'android') {
+        Speech.stop();
+      } else {
+        Speech.pause();
+      }
       setIsPaused(true);
+      isPausedRef.current = true;
     } else if (isSpeaking && isPaused) {
-      // Resume
-      Speech.resume();
+      if (Platform.OS === 'android') {
+        speakChunk(currentChunkIndex);
+      } else {
+        Speech.resume();
+      }
       setIsPaused(false);
+      isPausedRef.current = false;
     } else {
-      // Start new
-      const textToSpeak = getFullText();
-
-      setIsSpeaking(true);
+      // Start fresh
+      Speech.stop();
+      const newChunks = getFullTextChunks();
+      chunksRef.current = newChunks;
+      isSpeakingRef.current = true;
+      isPausedRef.current = false;
       setIsPaused(false);
-
-      Speech.speak(textToSpeak, {
-        language: 'en-US',
-        pitch: 1.0,
-        rate: 0.85,
-        onStart: () => {
-          setIsSpeaking(true);
-          setIsPaused(false);
-        },
-        onDone: () => {
-          setIsSpeaking(false);
-          setIsPaused(false);
-        },
-        onStopped: () => {
-          setIsSpeaking(false);
-          setIsPaused(false);
-        },
-        onError: () => {
-          setIsSpeaking(false);
-          setIsPaused(false);
-        },
-      });
+      speakChunk(0);
     }
   };
 
@@ -165,6 +228,9 @@ const DevotionalDetail = () => {
     Speech.stop();
     setIsSpeaking(false);
     setIsPaused(false);
+    isSpeakingRef.current = false;
+    isPausedRef.current = false;
+    setCurrentChunkIndex(0);
   };
 
   if (loading) {
@@ -254,7 +320,7 @@ const DevotionalDetail = () => {
           {/* Date */}
           {devotional.subheading && (
             <Text className='text-lg font-rubik-medium font-medium mb-2'>
-              {devotional.subheading}
+            {devotional.subheading ? String(devotional.subheading) : ''}
             </Text>
           )}
           <View className="flex-row items-center mb-4">
@@ -266,7 +332,7 @@ const DevotionalDetail = () => {
 
           {/* Title */}
           <Text className="text-3xl font-rubik-semibold py-5 text-gray-900 mb-4">
-            {devotional.title}
+            {devotional.title ? String(devotional.title) : ''}
           </Text>
 
           {/* Author */}
@@ -276,7 +342,7 @@ const DevotionalDetail = () => {
                 <Ionicons name="person" size={16} color="#E94B7B" />
               </View>
               <Text className="text-gray-700 font-rubik-semibold">
-                By {devotional.author}
+              By {String(devotional.author)}
               </Text>
             </View>
           )}
@@ -329,7 +395,7 @@ const DevotionalDetail = () => {
                 </Text>
               </View>
               <Text className="text-gray-800 text-base leading-7 italic font-rubik-semibold font-semibold">
-                {devotional.key_verse}
+                {String(devotional.key_verse)}
               </Text>
             </View>
           )}
@@ -346,7 +412,7 @@ const DevotionalDetail = () => {
               }}
               className="font-rubik-medium"
             >
-              {formatContent(devotional.content)}
+              {String(formatContent(devotional.content))}
             </Text>
           </View>
 
@@ -359,7 +425,7 @@ const DevotionalDetail = () => {
                 </Text>
               </View>
               <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
-                {formatContent(devotional.application_note)}
+                {String(formatContent(devotional.application_note))}
               </Text>
             </View>
           )}
@@ -374,7 +440,7 @@ const DevotionalDetail = () => {
                 </Text>
               </View>
               <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
-                {formatContent(devotional.verses)}
+                {String(formatContent(devotional.verses))}
               </Text>
             </View>
           )}
@@ -388,7 +454,7 @@ const DevotionalDetail = () => {
                 </Text>
               </View>
               <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
-                {formatContent(devotional.prayer_note)}
+                {String(formatContent(devotional.prayer_note))}
               </Text>
             </View>
           )}

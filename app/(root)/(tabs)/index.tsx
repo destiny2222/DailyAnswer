@@ -68,7 +68,7 @@ export function MemoryCard({
           <Ionicons name="flower" size={128} color="#F97316" />
         </View>
 
-        <Text className="text-slate-200 text-xs font-semibold mb-3">
+        <Text className="text-slate-200 text-2xl font-bold mb-3 capitalize tracking-tight leading-8">
           {item.verse_text}
         </Text>
 
@@ -298,7 +298,7 @@ export default function HomeScreen() {
   };
 
   const handleLoadMore = () => {
-    if (!loadingMore && hasMore) {
+    if (!loadingMore && hasMore && !searchQuery.trim()) {
       const nextPage = page + 1;
       setPage(nextPage);
       loadDevotionals(false, nextPage);
@@ -387,7 +387,7 @@ export default function HomeScreen() {
                       Good {getTimeOfDay()}!
                     </Text>
                     <Text className="text-white text-2xl font-bold mt-1">
-                      {name.slice(0, 10) || 'Anonymous User'}
+                      {name.split(' ')[0] || 'Anonymous User'}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -556,8 +556,11 @@ export default function HomeScreen() {
           }
           ListEmptyComponent={
             <View className="px-6 py-8 items-center">
-              <Text className="text-white/70 text-sm">
-                No previous devotionals available
+              <Ionicons name="search-outline" size={40} color="#9CA3AF" />
+              <Text className="text-white/70 text-sm mt-3">
+                {searchQuery.trim()
+                  ? `No devotionals found for "${searchQuery}"`
+                  : 'No previous devotionals available'}
               </Text>
             </View>
           }

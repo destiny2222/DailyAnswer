@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
 import { apiRequest } from "../../utils/api";
-import TurnstileWidget from "../../components/TurnstileWidget";
+import RecaptchaWidget from "../../components/RecaptchaWidget";
 
 const ForgotPassword = () => {
   const router = useRouter();
@@ -31,7 +31,7 @@ const ForgotPassword = () => {
     message: "",
     type: "success" as "success" | "error",
   });
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   const handleSendOtp = async () => {
     if (!email) {
@@ -44,7 +44,7 @@ const ForgotPassword = () => {
       return;
     }
 
-    if (!turnstileToken) {
+    if (!recaptchaToken) {
       setAlertConfig({
         title: "Security Check",
         message: "Verify you are not a robot.",
@@ -61,7 +61,7 @@ const ForgotPassword = () => {
           method: "POST",
           body: { 
             email,
-            "cf-turnstile-response": turnstileToken,
+            "g-recaptcha-response": recaptchaToken,
           },
           auth: false,
         }
@@ -205,7 +205,7 @@ const ForgotPassword = () => {
                 </View>
 
                 {/* Turnstile Widget */}
-                <TurnstileWidget onVerify={setTurnstileToken} />
+                <RecaptchaWidget onVerify={setRecaptchaToken} />
 
                 <TouchableOpacity
                   onPress={handleSendOtp}
