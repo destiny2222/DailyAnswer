@@ -311,12 +311,12 @@ const DevotionalDetail = () => {
         {/* Hero Image */}
         <Image
           source={devotional.image ? { uri: devotional.image } : book}
-          className="w-full h-64"
-          resizeMode="cover"
+          className="w-full h-64 bg-white"
+          resizeMode="contain"
         />
 
         {/* Content */}
-        <View className="bg-white rounded-t-3xl -mt-6 pt-6 px-6">
+        <View className="bg-white rounded-t-3xl pt-6 px-6">
           {/* Date */}
           {devotional.subheading && (
             <Text className='text-lg font-rubik-medium font-medium mb-2'>

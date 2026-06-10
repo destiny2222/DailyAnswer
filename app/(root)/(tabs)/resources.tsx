@@ -1,4 +1,5 @@
 import book from "@/assets/images/devotion.jpg";
+import images from "@/constants/images";
 import AuthGuardModal from '@/components/AuthGuardModal';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import TopNav from '@/components/topNav';
@@ -63,7 +64,11 @@ export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
       className="max-w-[25rem] bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-8"
       activeOpacity={0.8}
     >
-      <Image source={item.image ? { uri: item.image } : book} className="w-full h-48" resizeMode="cover" />
+      <Image
+        source={item.image ? { uri: item.image } : book}
+        className="w-full h-48 bg-white"
+        resizeMode="contain"
+      />
       <View className="p-4">
         <View className="flex-row justify-between items-center mb-2">
           <Text className="text-gray-500 text-xs">
@@ -241,17 +246,17 @@ export default function ResourcesScreen() {
               {todaysDevotional ? (
                 <TouchableOpacity
                   onPress={() => handleDevotionalPress(todaysDevotional)}
-                  className="rounded-2xl overflow-hidden mb-6 bg-gray-800"
+                  className="rounded-2xl mb-6"
                   activeOpacity={0.8}
                 >
                   <Image
                     source={todaysDevotional.image ? { uri: todaysDevotional.image } : book}
-                    className="w-full h-64"
-                    resizeMode="cover"
-                  />
+                    className="w-full h-64 rounded-2xl bg-white"
+                    resizeMode="contain"
+                  /> 
                   <LinearGradient
                     colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.9)']}
-                    className="absolute bottom-0 left-0 right-0 p-5"
+                    className="absolute bottom-0 left-0 right-0 p-5 rounded-b-2xl"
                   >
                     <View className="flex-row items-center mb-2">
                       <Ionicons name="calendar" size={16} color="#E94B7B" />

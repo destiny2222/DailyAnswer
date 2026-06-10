@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import book from "@/assets/images/devotion.jpg";
+import images from "@/constants/images";
 import { fetchMemories, Memory } from "../../../libs/memories";
 import { fetchDevotionals, Devotional, fetchTodaysDevotional } from "../../../libs/devotional";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -142,10 +143,11 @@ export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
             {formatDateShort(item.date)}
           </Text>
         </View>
-        <View className="rounded-lg overflow-hidden">
+        <View style={{ overflow: 'visible' }}>
           <Image
             source={item.image ? { uri: item.image } : book}
             className="w-32 h-32 rounded-lg"
+            resizeMode="contain"
           />
         </View>
       </View>
@@ -506,17 +508,17 @@ const greeting = getTimeOfDay(userTimeZone);
                 {todaysDevotional ? (
                   <TouchableOpacity
                     onPress={() => handleDevotionalPress(todaysDevotional)}
-                    className="rounded-2xl overflow-hidden mb-6"
+                    className="rounded-2xl mb-6"
                     activeOpacity={0.8}
                   >
                     <Image
                       source={todaysDevotional.image ? { uri: todaysDevotional.image } : book}
-                      className="w-full h-56"
-                      resizeMode="cover"
-                    />
+                      className="w-full h-56 rounded-2xl bg-white"
+                      resizeMode="contain"
+                    /> 
                     <LinearGradient
                       colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']}
-                      className="absolute bottom-0 left-0 right-0 p-4"
+                      className="absolute bottom-0 left-0 right-0 p-4 rounded-b-2xl"
                     >
                       <View className="flex-row items-center mb-2">
                         <Ionicons name="calendar" size={16} color="#FFF" />
