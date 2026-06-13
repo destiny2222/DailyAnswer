@@ -18,6 +18,7 @@ import { useGlobalContext } from "@/utils/auth";
 import { createSubscription, getSubscriptionPlans, Plan, confirmPayment } from "@/libs/payment";
 import Toast from "react-native-toast-message";
 import CustomAlert from "@/components/CustomAlert";
+import { StatusBar } from "expo-status-bar";
 
 const Subscription = () => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
@@ -40,7 +41,7 @@ const Subscription = () => {
       try {
         setLoading(true);
         const availablePlans = await getSubscriptionPlans();
-        // console.log("Fetched plans:", availablePlans);
+        
         setPlans(availablePlans);
         if (availablePlans.length > 0) {
           // default to plan_standard_quarterly
@@ -80,14 +81,15 @@ const Subscription = () => {
     setIsSubscribing(true);
     try {
       const { clientSecret, customerId } = await createSubscription(selectedPlan);
-
+      
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: "The Daily Answer",
         customerId: customerId,
         paymentIntentClientSecret: clientSecret,
         allowsDelayedPaymentMethods: true,
-      });
 
+      });
+      
       if (initError) {
         setAlertConfig({
           title: "Error",
@@ -100,8 +102,8 @@ const Subscription = () => {
       }
 
       const { error: presentError } = await presentPaymentSheet();
-
       if (presentError) {
+        // logger.error("Present Error:", presentError);
         if (presentError.code !== 'Canceled') {
           setAlertConfig({
             title: "Payment Error",
@@ -141,6 +143,7 @@ const Subscription = () => {
         }
       }
     } catch (e: any) {
+      // logger.error("Subscription error:", e);
       setAlertConfig({
         title: "Subscription Error",
         message: e.message || "An unexpected error occurred.",
@@ -152,19 +155,19 @@ const Subscription = () => {
     }
   };
 
-  const handleRestorePurchases = async () => {
-    setIsRestoring(true);
-    setError(null);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setAlertConfig({
-      title: "Restoration Complete",
-      message: "Your purchases have been restored successfully.",
-      type: "error"
-    });
-    setAlertVisible(true);
-    setIsRestoring(false);
-  };
+  // const handleRestorePurchases = async () => {
+  //   setIsRestoring(true);
+  //   setError(null);
+  //   // Simulate API call
+  //   await new Promise((resolve) => setTimeout(resolve, 2000));
+  //   setAlertConfig({
+  //     title: "Restoration Complete",
+  //     message: "Your purchases have been restored successfully.",
+  //     type: "error"
+  //   });
+  //   setAlertVisible(true);
+  //   setIsRestoring(false);
+  // };
 
   const features = [
     "Support quality writing",
@@ -183,6 +186,7 @@ const Subscription = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
+      <StatusBar style="light" />
       <Stack.Screen options={{ 
         headerTitle: 'Subscription',
         headerBackTitle: 'Back',
@@ -252,7 +256,7 @@ const Subscription = () => {
           </TouchableOpacity>
 
           {/* Restore Purchases */}
-          <View className="w-full bg-slate-800 rounded-xl p-4 items-center mb-6">
+          {/* <View className="w-full bg-slate-800 rounded-xl p-4 items-center mb-6">
             <TouchableOpacity
               onPress={handleRestorePurchases}
               disabled={isRestoring}
@@ -275,7 +279,7 @@ const Subscription = () => {
                 </TouchableOpacity>
               </View>
             )}
-          </View>
+          </View> */}
 
           {/* Legal */}
           <View className="items-center mb-6">

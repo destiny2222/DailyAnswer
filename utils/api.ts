@@ -1,37 +1,40 @@
 import * as SecureStore from "expo-secure-store";
-import CryptoJS from "crypto-js";
+import { logger } from "./logger";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
-const ENCRYPTION_KEY = process.env.EXPO_PUBLIC_API_ENCRYPTION_KEY;
+const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-/**
- * Encrypt data using AES-256-GCM (simulated mode for CryptoJS)
- */
-function encryptData(data: string): string {
-  if (!ENCRYPTION_KEY) return data;
-  return CryptoJS.AES.encrypt(data, ENCRYPTION_KEY).toString();
-}
-
-/**
- * Decrypt data using AES-256-GCM
- */
-function decryptData(ciphertext: string): string {
-  if (!ENCRYPTION_KEY) return ciphertext;
-  const bytes = CryptoJS.AES.decrypt(ciphertext, ENCRYPTION_KEY);
-  return bytes.toString(CryptoJS.enc.Utf8);
+if (!BASE_URL) {
+  throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in your env");
 }
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export class ApiError extends Error {
   status: number;
-  data: unknown;
+  data: any;
 
   constructor(message: string, status: number, data?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.data = data;
+  }
+
+  /**
+   * Static helper to extract a user-friendly message from an error.
+   */
+  static getMessage(error: any): string {
+    if (error instanceof ApiError) {
+      if (error.data && typeof error.data === 'object' && 'errors' in error.data) {
+        const errors = error.data.errors;
+        if (Array.isArray(errors)) return errors.join(', ');
+        if (typeof errors === 'object' && errors !== null) {
+          return Object.values(errors).flat().join(', ');
+        }
+      }
+      return error.message;
+    }
+    return error instanceof Error ? error.message : String(error);
   }
 }
 
@@ -41,7 +44,6 @@ type RequestOptions = {
   headers?: Record<string, string>;
   auth?: boolean;
   token?: string;
-  csrf?: string;
   signal?: AbortSignal;
 };
 
@@ -50,18 +52,20 @@ async function getAccessToken() {
     const token = await SecureStore.getItemAsync("access_token");
     return token;
   } catch (error) {
-    // console.error("Error retrieving access token:", error);
+    // logger.error("Error retrieving access token:", error);
     return null;
   }
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const url = `${BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
   const method = options.method ?? "GET";
+
+  // logger.debug(`[API] ${method} ${path}`, options.body ? 'with body' : 'no body');
 
   const headers: Record<string, string> = {
     Accept: "application/json",
-    ...(options.csrf ? { "X-XSRF-TOKEN": options.csrf } : {}),
+    "X-Api-Token": process.env.EXPO_PUBLIC_API_ACCESS_TOKEN || "",
     ...(options.headers ?? {}),
   };
 
@@ -72,9 +76,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   const body = options.body;
-  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  const isFormData =
+    typeof FormData !== "undefined" && body instanceof FormData;
+
   const hasBody = body !== undefined && method !== "GET" && method !== "HEAD";
 
+  // Only set JSON content-type for non-FormData bodies
   if (hasBody && !isFormData) {
     headers["Content-Type"] = "application/json";
   }
@@ -86,69 +93,41 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
   }
 
-  let finalBody: any = undefined;
-  if (hasBody) {
-    if (isFormData) {
-      finalBody = body as FormData;
-    } else {
-      if (ENCRYPTION_KEY) {
-        finalBody = JSON.stringify({
-          encrypted_data: encryptData(JSON.stringify(body)),
-        });
-      } else {
-        finalBody = JSON.stringify(body);
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: hasBody ? (isFormData ? (body as FormData) : JSON.stringify(body)) : undefined,
+      signal: options.signal,
+    });
+
+    const text = await res.text();
+    const contentType = res.headers.get("content-type") ?? "";
+
+    let data: any = null;
+    if (text) {
+      try {
+        data = contentType.includes("application/json") ? JSON.parse(text) : text;
+      } catch {
+        data = text;
       }
     }
-  }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: finalBody,
-    signal: options.signal,
-  });
+    if (!res.ok) {
+      const message =
+        data && typeof data === "object" && "message" in data
+          ? String(data.message)
+          : `Request failed (${res.status})`;
 
-  const text = await res.text();
-  const contentType = res.headers.get("content-type") ?? "";
-
-  let data: any = null;
-  if (text) {
-    try {
-      data = contentType.includes("application/json") ? JSON.parse(text) : text;
-    } catch {
-      data = text;
+      // logger.error(`[API ERROR] ${method} ${path} (${res.status}):`, message);
+      throw new ApiError(message, res.status, data);
     }
-  }
 
-  // Decrypt if response contains encrypted data field
-  if (data && typeof data === 'object' && data.data && ENCRYPTION_KEY) {
-    try {
-      const decrypted = decryptData(data.data);
-      data = JSON.parse(decrypted);
-    } catch (e) {
-      // If parsing fails, it might be a raw string or already decrypted
-    }
-  }
-
-  if (!res.ok) {
-    const message =
-      data && typeof data === "object" && "message" in data
-        ? String(data.message)
-        : `Request failed (${res.status})`;
-
-    throw new ApiError(message, res.status, data);
-  }
-
-  return data as T;
-}
-
-
-export async function getCsrfToken(): Promise<string | null> {
-  try {
-    const response = await apiRequest<{ token: string }>("/csrf-token", { auth: false });
-    return response.token;
+    return data as T;
   } catch (error) {
-    return null;
+    if (error instanceof ApiError) throw error;
+    // logger.error(`[API NETWORK ERROR] ${method} ${path}:`, error);
+    throw error;
   }
 }
 

@@ -23,6 +23,7 @@ import {
   Prayer,
   updatePrayer,
 } from '../../../libs/prayer';
+import { StatusBar } from 'expo-status-bar';
 
 type TabType = 'list' | 'answered';
 
@@ -62,7 +63,7 @@ const PrayerScreen = () => {
       const data = await getPrayers();
       setPrayers(data || []);
     } catch (error) {
-      // console.error('Error loading prayers:', error);
+      
       setPrayers([]);
     } finally {
       setLoading(false);
@@ -220,6 +221,7 @@ const PrayerScreen = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-900" edges={['top']}>
+      <StatusBar style="light" />
       <AuthGuardModal visible={modalVisible} onClose={() => setModalVisible(false)} />
       <CustomAlert
         visible={alertInfo.visible}

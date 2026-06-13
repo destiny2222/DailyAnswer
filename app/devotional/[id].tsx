@@ -1,8 +1,11 @@
+import book from '@/assets/images/devotion.jpg';
+import { formatDateLong } from '@/utils/date';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
-import React, { useEffect, useState } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -13,14 +16,52 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { detailDevotional, Devotional } from '../../libs/devotional';
+import { detailDevotional } from '../../libs/devotional';
+
+const stripHtml = (html: string) =>
+  html
+    ?.replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+
+const formatContent = (html: string) => {
+  if (!html) return '';
+
+  let formatted = html
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .trim();
+
+  return formatted;
+};
+
+const preprocessForSpeech = (text: string) => {
+  if (!text) return '';
+  return text
+    // Replace colons in scripture references (e.g., 34:19 or 34 : 19) with a space and "verse"
+    // We add spaces around it to ensure the TTS engine treats it as a word, not a time
+    .replace(/(\d+)\s*:\s*(\d+)/g, '$1 verse $2')
+    // Ensure small pauses after commas and periods
+    .replace(/,/g, ', ')
+    .replace(/\./g, '. ')
+    // Clean up multiple spaces
+    .replace(/\s\s+/g, ' ')
+    .trim();
+};
 
 const DevotionalDetail = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const [devotional, setDevotional] = useState<Devotional | null>(null);
+  const [devotional, setDevotional] = useState < Devotional | null > (null);
   const [loading, setLoading] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -28,13 +69,20 @@ const DevotionalDetail = () => {
   const [isBold, setIsBold] = useState(false);
   const [fontSize, setFontSize] = useState(18);
 
+  // Audio state management
+  const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
+  const chunksRef = useRef<string[]>([]);
+  const isSpeakingRef = useRef(false);
+  const isPausedRef = useRef(false);
+
   useEffect(() => {
     loadDevotional();
     setupAudio();
-    
+
     return () => {
       // Cleanup speech when component unmounts
       Speech.stop();
+      isSpeakingRef.current = false;
     };
   }, [id]);
 
@@ -48,7 +96,7 @@ const DevotionalDetail = () => {
         playThroughEarpieceAndroid: false,
       });
     } catch (error) {
-      // console.error('Error setting up audio:', error);
+
     }
   };
 
@@ -58,47 +106,14 @@ const DevotionalDetail = () => {
       const data = await detailDevotional(id as string);
       setDevotional(data);
     } catch (error) {
-      // console.error('Error loading devotional:', error);
+
     } finally {
       setLoading(false);
     }
   };
 
-  const formatDate = (date: Date | string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    };
-    if (date instanceof Date) {
-      return date.toLocaleDateString('en-US', options);
-    }
-    return new Date(date).toLocaleDateString('en-US', options);
-  };
 
-  const stripHtml = (html: string) =>
-    html
-      ?.replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .trim();
 
-  const formatContent = (html: string) => {
-    if (!html) return '';
-    
-    let formatted = html
-      .replace(/<\/p>/gi, '\n\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .trim();
-    
-    return formatted;
-  };
 
   const handleShare = async () => {
     if (!devotional) return;
@@ -107,65 +122,105 @@ const DevotionalDetail = () => {
         message: `${devotional.title}\n\n${formatContent(devotional.content)}\n\n${devotional.key_verse}`,
       });
     } catch (error) {
-      // console.error('Error sharing:', error);
+
     }
   };
 
-  const getFullText = () => {
-    if (!devotional) return '';
-    
-    const parts = [
+  const getFullTextChunks = () => {
+    if (!devotional) return [];
+
+    const rawParts = [
       devotional.title,
-      devotional.subheading && `${devotional.subheading}`,
-      devotional.key_verse && `Key Verse: ${devotional.key_verse}`,
+      devotional.subheading,
+      devotional.key_verse ? `Key Verse: ${devotional.key_verse}` : null,
       formatContent(devotional.content),
-      devotional.application_note && formatContent(devotional.application_note),
-      devotional.verses && `Scripture References: ${formatContent(devotional.verses)}`,
-      devotional.prayer_note && formatContent(devotional.prayer_note),
-    ].filter(Boolean);
+      devotional.application_note ? `Application: ${formatContent(devotional.application_note)}` : null,
+      devotional.verses ? `Scripture References: ${formatContent(devotional.verses)}` : null,
+      devotional.prayer_note ? `Prayer: ${formatContent(devotional.prayer_note)}` : null,
+    ].filter(Boolean) as string[];
+
+    const chunks: string[] = [];
+    rawParts.forEach(part => {
+      const processed = preprocessForSpeech(part);
+      // Split by paragraph first, then by sentence if still too long
+      const paragraphs = processed.split(/\n\n+/);
+      
+      paragraphs.forEach(p => {
+        const trimmedP = p.trim();
+        if (trimmedP) {
+          if (trimmedP.length > 500) {
+            const sentences = trimmedP.split(/(?<=[.!?])\s+/);
+            sentences.forEach(s => {
+              const trimmedS = s.trim();
+              if (trimmedS) chunks.push(trimmedS);
+            });
+          } else {
+            chunks.push(trimmedP);
+          }
+        }
+      });
+    });
+
+    return chunks;
+  };
+
+  const speakChunk = (index: number) => {
+    if (index >= chunksRef.current.length) {
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      return;
+    }
+
+    setCurrentChunkIndex(index);
     
-    return parts.join('. ');
+    Speech.speak(chunksRef.current[index], {
+      language: 'en-US',
+      pitch: 1.0,
+      rate: 0.9,
+      onStart: () => {
+        setIsSpeaking(true);
+        isSpeakingRef.current = true;
+      },
+      onDone: () => {
+        if (isSpeakingRef.current && !isPausedRef.current) {
+          speakChunk(index + 1);
+        }
+      },
+      onError: (err) => {
+        setIsSpeaking(false);
+        isSpeakingRef.current = false;
+      }
+    });
   };
 
   const handlePlayPause = async () => {
     if (!devotional) return;
 
     if (isSpeaking && !isPaused) {
-      // Pause
-      Speech.pause();
+      if (Platform.OS === 'android') {
+        Speech.stop();
+      } else {
+        Speech.pause();
+      }
       setIsPaused(true);
+      isPausedRef.current = true;
     } else if (isSpeaking && isPaused) {
-      // Resume
-      Speech.resume();
+      if (Platform.OS === 'android') {
+        speakChunk(currentChunkIndex);
+      } else {
+        Speech.resume();
+      }
       setIsPaused(false);
+      isPausedRef.current = false;
     } else {
-      // Start new
-      const textToSpeak = getFullText();
-      
-      setIsSpeaking(true);
+      // Start fresh
+      Speech.stop();
+      const newChunks = getFullTextChunks();
+      chunksRef.current = newChunks;
+      isSpeakingRef.current = true;
+      isPausedRef.current = false;
       setIsPaused(false);
-      
-      Speech.speak(textToSpeak, {
-        language: 'en-US',
-        pitch: 1.0,
-        rate: 0.85,
-        onStart: () => {
-          setIsSpeaking(true);
-          setIsPaused(false);
-        },
-        onDone: () => {
-          setIsSpeaking(false);
-          setIsPaused(false);
-        },
-        onStopped: () => {
-          setIsSpeaking(false);
-          setIsPaused(false);
-        },
-        onError: () => {
-          setIsSpeaking(false);
-          setIsPaused(false);
-        },
-      });
+      speakChunk(0);
     }
   };
 
@@ -173,6 +228,9 @@ const DevotionalDetail = () => {
     Speech.stop();
     setIsSpeaking(false);
     setIsPaused(false);
+    isSpeakingRef.current = false;
+    isPausedRef.current = false;
+    setCurrentChunkIndex(0);
   };
 
   if (loading) {
@@ -201,6 +259,7 @@ const DevotionalDetail = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
+      <StatusBar style="dark" />
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
         <TouchableOpacity onPress={() => {
@@ -211,36 +270,36 @@ const DevotionalDetail = () => {
         </TouchableOpacity>
         <View className="flex-row space-x-4 gap-1">
           {/* Play/Pause Button - NOW VISIBLE */}
-          <TouchableOpacity 
-            className='bg-[#E94B7B] p-3 rounded-2xl' 
+          <TouchableOpacity
+            className='bg-[#E94B7B] p-3 rounded-2xl'
             onPress={handlePlayPause}
           >
-            <Ionicons 
-              name={isSpeaking && !isPaused ? "pause" : "play"} 
-              size={20} 
-              color="#FFF" 
+            <Ionicons
+              name={isSpeaking && !isPaused ? "pause" : "play"}
+              size={20}
+              color="#FFF"
             />
           </TouchableOpacity>
-          
+
           {/* Stop Button - Shows when playing */}
           {isSpeaking && (
-            <TouchableOpacity 
-              className='bg-gray-600 p-3 rounded-2xl' 
+            <TouchableOpacity
+              className='bg-gray-600 p-3 rounded-2xl'
               onPress={handleStop}
             >
               <Ionicons name="stop" size={20} color="#FFF" />
             </TouchableOpacity>
           )}
-          
-          <TouchableOpacity 
-            className='bg-gray-400 p-3 rounded-2xl' 
+
+          <TouchableOpacity
+            className='bg-gray-400 p-3 rounded-2xl'
             onPress={() => setShowFormatMenu(true)}
           >
             <Ionicons name="text" size={20} color="#333" />
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            className='bg-gray-400 p-3 rounded-2xl' 
+
+          <TouchableOpacity
+            className='bg-gray-400 p-3 rounded-2xl'
             onPress={handleShare}
           >
             <Ionicons name="share-outline" size={20} color="#333" />
@@ -251,29 +310,29 @@ const DevotionalDetail = () => {
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Hero Image */}
         <Image
-          source={{ uri: devotional.image }}
-          className="w-full h-64"
-          resizeMode="cover"
+          source={devotional.image ? { uri: devotional.image } : book}
+          className="w-full h-64 bg-white"
+          resizeMode="contain"
         />
 
         {/* Content */}
-        <View className="bg-white rounded-t-3xl -mt-6 pt-6 px-6">
+        <View className="bg-white rounded-t-3xl pt-6 px-6">
           {/* Date */}
           {devotional.subheading && (
             <Text className='text-lg font-rubik-medium font-medium mb-2'>
-              {devotional.subheading}
+            {devotional.subheading ? String(devotional.subheading) : ''}
             </Text>
           )}
           <View className="flex-row items-center mb-4">
             <Ionicons name="calendar-outline" size={16} color="#666" />
             <Text className="text-gray-600 text-sm ml-2">
-              {formatDate(devotional.date)}
+              {formatDateLong(devotional.date)}
             </Text>
           </View>
 
           {/* Title */}
           <Text className="text-3xl font-rubik-semibold py-5 text-gray-900 mb-4">
-            {devotional.title}
+            {devotional.title ? String(devotional.title) : ''}
           </Text>
 
           {/* Author */}
@@ -283,7 +342,7 @@ const DevotionalDetail = () => {
                 <Ionicons name="person" size={16} color="#E94B7B" />
               </View>
               <Text className="text-gray-700 font-rubik-semibold">
-                By {devotional.author}
+              By {String(devotional.author)}
               </Text>
             </View>
           )}
@@ -297,10 +356,10 @@ const DevotionalDetail = () => {
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center flex-1">
                 <View className="bg-[#E94B7B] rounded-full p-3 mr-3">
-                  <Ionicons 
-                    name={isSpeaking && !isPaused ? "pause" : "play"} 
-                    size={24} 
-                    color="#FFF" 
+                  <Ionicons
+                    name={isSpeaking && !isPaused ? "pause" : "play"}
+                    size={24}
+                    color="#FFF"
                   />
                 </View>
                 <View className="flex-1">
@@ -336,27 +395,27 @@ const DevotionalDetail = () => {
                 </Text>
               </View>
               <Text className="text-gray-800 text-base leading-7 italic font-rubik-semibold font-semibold">
-                {devotional.key_verse}
+                {String(devotional.key_verse)}
               </Text>
             </View>
           )}
 
           {/* Main Content */}
           <View className="mb-8">
-            <Text 
-              style={{  
-                fontSize, 
+            <Text
+              style={{
+                fontSize,
                 fontWeight: isBold ? 'bold' : 'normal',
                 lineHeight: fontSize * 1.4,
-                color: '#1F2937', 
-                textAlign: 'justify' 
+                color: '#1F2937',
+                textAlign: 'justify'
               }}
               className="font-rubik-medium"
             >
-              {formatContent(devotional.content)}
+              {String(formatContent(devotional.content))}
             </Text>
           </View>
-          
+
           {devotional.application_note && (
             <View className="bg-blue-50 rounded-xl p-4 mb-6">
               <View className="flex-row items-center mb-2">
@@ -366,11 +425,11 @@ const DevotionalDetail = () => {
                 </Text>
               </View>
               <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
-                {formatContent(devotional.application_note)}
+                {String(formatContent(devotional.application_note))}
               </Text>
             </View>
           )}
-          
+
           {/* Related Verses */}
           {devotional.verses && (
             <View className="bg-blue-50 rounded-xl p-4 mb-6">
@@ -381,11 +440,11 @@ const DevotionalDetail = () => {
                 </Text>
               </View>
               <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
-                {formatContent(devotional.verses)}
+                {String(formatContent(devotional.verses))}
               </Text>
             </View>
           )}
-          
+
           {devotional.prayer_note && (
             <View className="bg-purple-50 rounded-xl p-4 mb-6">
               <View className="flex-row items-center mb-2">
@@ -395,14 +454,14 @@ const DevotionalDetail = () => {
                 </Text>
               </View>
               <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
-                {formatContent(devotional.prayer_note)}
+                {String(formatContent(devotional.prayer_note))}
               </Text>
             </View>
           )}
-          
+
           {/* Action Buttons */}
           <View className="flex-row space-x-3 mb-8">
-            <TouchableOpacity  
+            <TouchableOpacity
               className="flex-1 flex-row items-center justify-center bg-[#E94B7B] py-4 rounded-full"
               onPress={handleShare}
               activeOpacity={0.8}
@@ -413,7 +472,7 @@ const DevotionalDetail = () => {
 
             <TouchableOpacity
               className="flex-1 flex-row items-center justify-center bg-gray-200 py-4 rounded-full"
-              onPress={() => {}}
+              onPress={() => { }}
               activeOpacity={0.8}
             >
               <Ionicons name="bookmark-outline" size={20} color="#333" />
@@ -424,7 +483,7 @@ const DevotionalDetail = () => {
           {/* Footer Info */}
           <View className="bg-gray-100 rounded-xl p-4 mb-6">
             <Text className="text-gray-600 text-xs text-center">
-              Published on {formatDate(devotional.date)}
+              Published on {formatDateLong(devotional.date)}
             </Text>
             {devotional.published_by && (
               <Text className="text-gray-500 text-xs text-center mt-1">

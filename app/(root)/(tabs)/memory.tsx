@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import * as Clipboard from 'expo-clipboard'
 import CustomAlert from '@/components/CustomAlert'
+import { StatusBar } from 'expo-status-bar'
 
 const MemoryVerse = () => {
   const [memories, setMemories] = useState<Memory[]>([])
@@ -23,7 +24,7 @@ const MemoryVerse = () => {
       const data = await fetchMemories()
       setMemories(data)
     } catch (error) {
-      // console.error('Error loading memories:', error)
+      
     } finally {
       setLoading(false)
     }
@@ -95,7 +96,7 @@ const MemoryVerse = () => {
         setAlertVisible(true)
         setMenuVisible(false)
       } catch (error) {
-        // console.error('Error creating prayer:', error)
+        
         setAlertConfig({
           title: 'Failed to Add Prayer',
           message: 'Please try again.',
@@ -152,6 +153,7 @@ const MemoryVerse = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
+      <StatusBar style="light" />
       <View className="flex-1">
         {/* Header */}
         <View className="px-4 py-4 border-b border-slate-800">

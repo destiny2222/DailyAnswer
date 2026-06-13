@@ -1,3 +1,4 @@
+import images from '@/constants/images';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as SecureStore from "expo-secure-store";
@@ -12,9 +13,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import imgOne from '../../assets/images/onboarding/img-one.jpeg';
-import imgThree from '../../assets/images/onboarding/img-three.jpeg';
-import imgTwo from '../../assets/images/onboarding/img-two.jpeg';
 
 const { width, height } = Dimensions.get('window');
 
@@ -29,23 +27,23 @@ interface OnboardingItem {
 const onboardingData: OnboardingItem[] = [
   {
     id: '1',
-    quote: 'For Peace to be real must be unaffected by outside circumstances',
-    author: 'Daily Devotional',
-    image: imgOne,
+    quote: 'Your word is a lamp to my feet and a light to my path.',
+    author: 'Psalm 119:105',
+    image: images.onboardingImg1,
     overlayColor: 'rgba(30, 41, 59, 0.7)',
   },
   {
     id: '2',
-    quote: 'The Lord is my strength and my shield; my heart trusts in Him',
-    author: 'Psalm 28:7',
-    image: imgTwo,
+    quote: 'Sanctify them by Your truth. Your word is truth.',
+    author: 'John 17:17',
+    image: images.onboardingImg2,
     overlayColor: 'rgba(51, 65, 85, 0.7)',
   },
   {
     id: '3',
-    quote: 'Trust in the Lord with all your heart and lean not on your own understanding',
-    author: 'Proverbs 3:5',
-    image: imgThree,
+    quote: 'In the beginning was the Word, and the Word was with God, and the Word was God.',
+    author: 'John 1:1',
+    image: images.onboardingImg3,
     overlayColor: 'rgba(71, 85, 105, 0.7)',
   },
 ];
@@ -69,10 +67,10 @@ export default function OnboardingScreen() {
     } else {
       try {
         await SecureStore.setItemAsync("onboarding_completed", "true");
-        // console.log("Onboarding status saved.");
+        
         router.replace('/(root)/(tabs)');
       } catch (error) {
-        // console.error("Error saving onboarding status:", error);
+        
         // Still navigate even if save fails
         router.replace('/(root)/(tabs)');
       }
@@ -84,7 +82,7 @@ export default function OnboardingScreen() {
       await SecureStore.setItemAsync("onboarding_completed", "true");
       router.replace('/(root)/(tabs)');
     } catch (error) {
-      // console.error("Error saving onboarding status:", error);
+      
       // Still navigate even if save fails
       router.replace('/(root)/(tabs)');
     }

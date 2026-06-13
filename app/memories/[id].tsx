@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import * as Speech from "expo-speech";
+import { StatusBar } from "expo-status-bar";
 
 const MemoryDetails = () => {
   const { id } = useLocalSearchParams();
@@ -30,8 +31,7 @@ const MemoryDetails = () => {
       setLoading(true);
       const data = await detailMemory(id as string);
       setMemory(data);
-    } catch (error) {
-      // console.error("Error loading memory:", error);
+    } catch (error) { 
     } finally {
       setLoading(false);
     }
@@ -101,6 +101,7 @@ const MemoryDetails = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
+      <StatusBar style="dark" />
       <View className="flex-row items-center px-4 py-3 border-b border-gray-200 bg-white">
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#333" />

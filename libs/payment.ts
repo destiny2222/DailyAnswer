@@ -101,7 +101,6 @@ export async function getSubscriptionPlans(): Promise<Plan[]> {
     });
     return response.plans || [];
   } catch (error) {
-    // console.error("Error fetching subscription plans:", error);
     throw error;
   }
 }
@@ -125,7 +124,6 @@ export async function getSupportPlans(): Promise<RecurringSupportPlan[]> {
       nextPaymentDate: plan.created_at,
     })) as RecurringSupportPlan[];
   } catch (error) {
-    // console.error("Error fetching support plans:", error);
     throw error;
   }
 }
@@ -147,7 +145,6 @@ export async function createSubscription(
     );
     return response;
   } catch (error) {
-    // console.error("Error creating subscription:", error);
     throw error;
   }
 }
@@ -175,7 +172,6 @@ export async function createSupport(
     );
     return response;
   } catch (error) {
-    // console.error("Error creating support payment:", error);
     throw error;
   }
 }
@@ -201,7 +197,6 @@ export async function confirmRecurringSupport(
     );
     return response;
   } catch (error) {
-    // console.error("Error confirming recurring support:", error);
     throw error;
   }
 }
@@ -223,7 +218,6 @@ export async function cancelRecurringSupport(
     );
     return response;
   } catch (error) {
-    // console.error("Error cancelling recurring support:", error);
     throw error;
   }
 }

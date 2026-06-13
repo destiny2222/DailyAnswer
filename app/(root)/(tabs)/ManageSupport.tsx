@@ -3,6 +3,7 @@ import { cancelRecurringSupport, getSupportPlans } from "@/libs/payment";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Stack, router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -47,7 +48,7 @@ const ManageSupport = () => {
           const plans = await getSupportPlans();
           setSupports(plans);
         } catch {
-          // console.error("Failed to fetch support plans:");
+         
         } finally {
           setInitialLoading(false);
         }
@@ -133,6 +134,7 @@ const ManageSupport = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
+      <StatusBar style="light" />
       <Stack.Screen
         options={{
           headerTitle: "Manage Support",
@@ -145,10 +147,10 @@ const ManageSupport = () => {
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <View className="px-6 py-8">
           <Text className="text-white text-2xl font-bold mb-2">
-            Your Recurring Support
+            Your Recurring Donations
           </Text>
           <Text className="text-slate-400 text-base mb-8">
-            Manage your ongoing support contributions
+            Manage your ongoing Donations contributions
           </Text>
 
           {initialLoading ? (
@@ -157,18 +159,12 @@ const ManageSupport = () => {
             </View>
           ) : supports.length === 0 ? (
             <View className="items-center py-12">
-              <Ionicons name="heart-outline" size={64} color="#64748B" />
-              <Text className="text-slate-400 text-lg text-center mt-4 mb-6">
-                You don&apos;t have any active recurring support.
+              {setTimeout(() => {
+                router.push("/support" as any);
+              }, 3000)}
+              <Text className="text-slate-400 text-lg mb-4">
+                No active recurring donations found.
               </Text>
-              <TouchableOpacity
-                onPress={() => router.push("/support" as any)}
-                className="bg-pink-600 px-6 py-3 rounded-xl"
-              >
-                <Text className="text-white text-base font-semibold">
-                  Start Supporting
-                </Text>
-              </TouchableOpacity>
             </View>
           ) : (
             <View>
@@ -183,7 +179,7 @@ const ManageSupport = () => {
                         ${support.amount}
                       </Text>
                       <Text className="text-slate-400 text-sm capitalize">
-                        {support.interval} Support
+                        {support.interval} Donations
                       </Text>
                     </View>
                     <View
@@ -219,7 +215,7 @@ const ManageSupport = () => {
                       <ActivityIndicator size="small" color="#EF4444" />
                     ) : (
                       <Text className="text-red-400 font-semibold">
-                        Cancel Recurring Support
+                        Cancel Recurring Donations
                       </Text>
                     )}
                   </TouchableOpacity>
@@ -231,7 +227,7 @@ const ManageSupport = () => {
                 className="bg-slate-800 border-2 border-pink-500 rounded-xl p-4 items-center mt-4"
               >
                 <Text className="text-pink-500 text-base font-semibold">
-                  Add More Support
+                  Add More Donations
                 </Text>
               </TouchableOpacity>
             </View>

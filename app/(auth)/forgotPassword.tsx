@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
 import { apiRequest } from "../../utils/api";
+import RecaptchaWidget from "../../components/RecaptchaWidget";
 
 const ForgotPassword = () => {
   const router = useRouter();
@@ -30,6 +31,7 @@ const ForgotPassword = () => {
     message: "",
     type: "success" as "success" | "error",
   });
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   const handleSendOtp = async () => {
     if (!email) {
@@ -41,13 +43,26 @@ const ForgotPassword = () => {
       setAlertVisible(true);
       return;
     }
+
+    if (!recaptchaToken) {
+      setAlertConfig({
+        title: "Security Check",
+        message: "Verify you are not a robot.",
+        type: "error",
+      });
+      setAlertVisible(true);
+      return;
+    }
     try {
       setLoading(true);
       const response = await apiRequest<{ success: boolean; message: string }>(
         "/send-reset-otp",
         {
           method: "POST",
-          body: { email },
+          body: { 
+            email,
+            "g-recaptcha-response": recaptchaToken,
+          },
           auth: false,
         }
       );
@@ -188,6 +203,10 @@ const ForgotPassword = () => {
                     />
                   </View>
                 </View>
+
+                {/* Turnstile Widget */}
+                <RecaptchaWidget onVerify={setRecaptchaToken} />
+
                 <TouchableOpacity
                   onPress={handleSendOtp}
                   disabled={loading}

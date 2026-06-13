@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import './global.css';
 import OnboardingScreen from './(onboarding)';
 
+SplashScreen.preventAutoHideAsync();
+
 const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
 
 export default function RootLayout() {
@@ -23,12 +25,6 @@ export default function RootLayout() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
-
-  useEffect(() => {
     const checkOnboarding = async () => {
       const completed = await hasCompletedOnboarding();
       setShowOnboarding(!completed);
@@ -37,12 +33,17 @@ export default function RootLayout() {
     checkOnboarding();
   }, []);
 
-  // if (!fontsLoaded || !onboardingChecked) {
-  //   return null;
-  // }
+  useEffect(() => {
+    if (fontsLoaded && onboardingChecked) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, onboardingChecked]);
+
+  if (!fontsLoaded || !onboardingChecked) {
+    return null;
+  }
 
   if (showOnboarding) {
-    // Render onboarding screen directly;
     return <OnboardingScreen />;
   }
 

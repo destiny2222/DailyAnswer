@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useGlobalContext } from '../../../utils/auth';
-import { api, apiRequest } from '../../../utils/api';
+import { apiRequest, ApiError } from '../../../utils/api';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import CustomAlert from '../../../components/CustomAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 
 const EditProfile = () => {
   const { user, setUser } = useGlobalContext();
@@ -51,7 +52,7 @@ const EditProfile = () => {
     }
 
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsEditing: true,
         aspect: [1, 1],
         quality: 1,
@@ -68,14 +69,15 @@ const handleImageUpload = async (uri: string) => {
 
   const formData = new FormData();
 
-  const uriParts = uri.split(".");
-  const ext = (uriParts[uriParts.length - 1] || "jpg").toLowerCase();
-  const mime = ext === "jpg" ? "image/jpeg" : `image/${ext}`;
+  // Normalize file name and type for the request
+  const fileName = uri.split('/').pop() || 'profile.jpg';
+  const ext = fileName.split('.').pop()?.toLowerCase() || 'jpg';
+  const type = ext === 'png' ? 'image/png' : 'image/jpeg';
 
   formData.append("profile_image", {
     uri,
-    name: `profile.${ext}`,
-    type: mime,
+    name: fileName,
+    type: type,
   } as any);
 
   setImageUploading(true);
@@ -90,31 +92,40 @@ const handleImageUpload = async (uri: string) => {
       body: formData,
     });
 
-    if (response.success) {
-      // backend returns ProfileResource in response.data
-      setUser(response.data);
+    // console.log("[DEBUG] Profile Image Upload Response:", response);
+
+    // Defensive check: backend PHP code returns { success, message, data }
+    // but we check for response.data specifically since that's what setUser needs.
+    if (response && (response.success || response.data)) {
+      if (response.data) {
+        setUser(response.data);
+      }
 
       setAlertInfo({
         visible: true,
         title: "Success",
-        message: response.message,
+        message: response.message || "Profile image updated successfully.",
         type: "success",
       });
     } else {
       setAlertInfo({
         visible: true,
         title: "Error",
-        message: response.message || "Failed to update profile image.",
+        message: response?.message || "Failed to update profile image.",
         type: "error",
       });
     }
   } catch (error: any) {
-    // console.error("Image upload error:", error?.data || error?.message);
+    // console.error("[DEBUG] Profile Image Upload Catch Error:", error);
+
+    const errorMessage = error instanceof ApiError 
+      ? ApiError.getMessage(error) 
+      : (error?.message || "Upload failed.");
 
     setAlertInfo({
       visible: true,
       title: "Error",
-      message: error?.data?.error || error?.message || "Upload failed.",
+      message: errorMessage,
       type: "error",
     });
   } finally {
@@ -153,8 +164,12 @@ const handleImageUpload = async (uri: string) => {
         });
       }
     } catch (error: any) {
-      // console.error('Profile update error:', error.response?.data || error.message);
-      const errorMessage = error.response?.data?.error || 'An error occurred while updating profile data.';
+      // console.error("[DEBUG] Profile Update Catch Error:", error);
+      
+      const errorMessage = error instanceof ApiError 
+        ? ApiError.getMessage(error) 
+        : (error?.message || 'An error occurred while updating profile data.');
+
       setAlertInfo({
         visible: true,
         title: 'Update Error',
@@ -168,7 +183,8 @@ const handleImageUpload = async (uri: string) => {
 
   return (
     <SafeAreaView className='flex-1 bg-gray-900' edges={['top']}>
-    <ScrollView className="">
+      <StatusBar style="light" />
+    <ScrollView className=" pt-20">
         <CustomAlert
             visible={alertInfo.visible}
             title={alertInfo.title}
@@ -177,21 +193,21 @@ const handleImageUpload = async (uri: string) => {
             onClose={() => setAlertInfo({ ...alertInfo, visible: false })}
         />
       <View className="p-6">
-        <View className="items-center mb-6">
-          <View className="relative">
+        <View className="items-center justify-center mb-6">
+          <View className="relative items-center justify-center">
             <Image
               source={{ uri: profileImage || 'https://via.placeholder.com/150' }}
               className="w-32 h-32 rounded-full"
             />
             <TouchableOpacity
               onPress={handleChoosePhoto}
-              className="absolute bottom-8 right-7 bg-[#E94B7B] p-2 rounded-full border-2 border-[#e94b7b]"
+              className="absolute bottom-10 right-7 bg-[#E94B7B] p-2 rounded-full border-2 border-[#e94b7b]"
             >
               <Ionicons name="pencil" size={20} color="white" />
             </TouchableOpacity>
             {imageUploading && (
-                <View className="absolute top-0 bottom-0 left-0 right-0 items-center justify-center bg-black bg-opacity-50 rounded-full">
-                    <ActivityIndicator size="large" color="#ffffff" />
+                <View className="absolute bottom-20 right-30 items-center justify-center">
+                    <ActivityIndicator size="large" color="#E94B7B" />
                 </View>
             )}
             <Text className="mt-4 text-lg font-semibold text-white">Change profile picture</Text>

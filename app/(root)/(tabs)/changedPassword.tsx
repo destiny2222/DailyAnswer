@@ -2,6 +2,7 @@ import CustomAlert from '@/components/CustomAlert';
 import { changePassword } from '@/libs/profileUpdate';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -130,7 +131,6 @@ const changedPassword = () => {
         setShowConfirmPassword(false);
       }
     } catch (error: any) {
-      // console.error('Change password error:', error);
       
       const errorMessage = error?.data?.error || error?.message || 'An error occurred while changing password.';
       
@@ -155,6 +155,7 @@ const changedPassword = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-900">
+      <StatusBar style="light" />
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View className="bg-gray-900 px-6 py-4 border-b border-gray-700">

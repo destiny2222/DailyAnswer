@@ -1,14 +1,18 @@
+import book from "@/assets/images/devotion.jpg";
+import images from "@/constants/images";
 import AuthGuardModal from '@/components/AuthGuardModal';
 import SubscriptionModal from '@/components/SubscriptionModal';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Devotional, fetchDevotionals, fetchTodaysDevotional } from "../../../libs/devotional";
-import { canAccessPremiumContent } from '../../../utils/auth';
 import TopNav from '@/components/topNav';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, RefreshControl, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Devotional, fetchDevotionals, fetchTodaysDevotional, fetchUpcomingDevotionals } from "../../../libs/devotional";
+import { canAccessPremiumContent } from '../../../utils/auth';
+import { formatDateShort } from "../../../utils/date";
 
 type DevotionItem = {
   id: number | string;
@@ -29,14 +33,14 @@ interface DevotionCardProps {
 }
 
 const stripHtml = (html: string) =>
-    html
-      ?.replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .trim();
+  html
+    ?.replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
 
 const formatContent = (html: string) => {
   if (!html) return '';
-  
+
   let formatted = html
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<br\s*\/?>/gi, '\n')
@@ -47,35 +51,28 @@ const formatContent = (html: string) => {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .trim();
-  
+
   return formatted;
 };
 
 export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
-  const formatDate = (date: Date | string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    };
-    if (date instanceof Date) {
-      return date.toLocaleDateString("en-US", options);
-    }
-    return new Date(date).toLocaleDateString("en-US", options);
-  };
+
 
   return (
-    <TouchableOpacity  
-      onPress={() => onPress?.(item)} 
+    <TouchableOpacity
+      onPress={() => onPress?.(item)}
       className="max-w-[25rem] bg-gray-800 rounded-2xl shadow-xl overflow-hidden mb-8"
       activeOpacity={0.8}
     >
-      <Image source={{ uri: item.image }} className="w-full h-48" resizeMode="cover" />
+      <Image
+        source={item.image ? { uri: item.image } : book}
+        className="w-full h-48 bg-white"
+        resizeMode="contain"
+      />
       <View className="p-4">
         <View className="flex-row justify-between items-center mb-2">
           <Text className="text-gray-500 text-xs">
-            {formatDate(item.date)}
+            {formatDateShort(item.date)}
           </Text>
           <Ionicons name="checkmark-done-circle-outline" size={18} color="#4CAF50" />
         </View>
@@ -91,46 +88,89 @@ export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
 }
 
 export default function ResourcesScreen() {
-  const [devotionals, setDevotionals] = useState<Devotional[]>([]);
-  const [todaysDevotional, setTodaysDevotional] = useState<Devotional | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [devotionals, setDevotionals] = useState < Devotional[] > ([]);
+  const [todaysDevotional, setTodaysDevotional] = useState < Devotional | null > (null);
+  const [isLoading, setIsLoading] = useState < boolean > (false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    const loadDevotionals = async () => {
-      try {
+  const loadDevotionals = async (pageNumber = 1, shouldAppend = false) => {
+    try {
+      if (shouldAppend) {
+        setIsFetchingMore(true);
+      } else {
         setIsLoading(true);
-        
-        // Fetch today's devotional
+        setHasMore(true); // Reset this on a fresh load
+      }
+
+      let todayToFilter = todaysDevotional;
+      if (pageNumber === 1) {
         const todayData = await fetchTodaysDevotional();
         setTodaysDevotional(todayData);
-        
-        // Fetch all devotionals (today + previous)
-        const allData = await fetchDevotionals();
-        
-        // Filter out today's devotional from the list to avoid duplication
-        const previousDevotionals = todayData 
-          ? allData.filter(d => d.id !== todayData.id)
-          : allData;
-        
-        setDevotionals(previousDevotionals);
-      } catch (e) {
-        // console.log("Failed to load devotionals:", e);
-      } finally {
-        setIsLoading(false);
+        todayToFilter = todayData;
       }
-    };
-    loadDevotionals();
+
+      // Using 15 or 20 is usually better for mobile performance than 50
+      const { data: allData, meta } = await fetchUpcomingDevotionals(pageNumber, 15);
+
+      if (meta?.total) setTotal(meta.total);
+
+      // Filter out today's devotional to avoid showing it in both sections
+      const filteredNewData = todayToFilter
+        ? allData.filter(d => d.id !== todayToFilter.id)
+        : allData;
+
+      setDevotionals(prev => {
+        return pageNumber === 1 ? filteredNewData : [...prev, ...filteredNewData];
+      });
+
+      // Check if we are at the last page
+      const hasNextPage = meta ? meta.current_page < meta.last_page : false;
+      setHasMore(hasNextPage);
+      setPage(pageNumber);
+
+    } catch (e) {
+    } finally {
+      setIsLoading(false);
+      setIsFetchingMore(false);
+      setRefreshing(false);
+    }
+  };
+
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadDevotionals(1, false);
+  };
+
+  useEffect(() => {
+    loadDevotionals(1, false);
   }, []);
 
+  const filteredDevotionals = devotionals.filter(d =>
+    d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleLoadMore = () => {
+    if (!isFetchingMore && hasMore && searchQuery.length === 0) {
+      loadDevotionals(page + 1, true);
+    }
+  };
+
   const handleDevotionalPress = async (devotion: DevotionItem) => {
-    const accessStatus = await canAccessPremiumContent();
-    
+    const accessStatus = await canAccessPremiumContent(devotion.date);
+
     if (!accessStatus.isAuthenticated) {
       setShowAuthModal(true);
-    } else if (!accessStatus.hasSubscription) {
+    } else if (!accessStatus.canAccess) {
       setShowSubscriptionModal(true);
     } else {
       router.push(`/devotional/${devotion.id}`);
@@ -139,6 +179,7 @@ export default function ResourcesScreen() {
 
   return (
     <SafeAreaView className="bg-gray-900 h-screen">
+      <StatusBar style="light" />
       <TopNav title="Devotional" />
       {isLoading ? (
         <View className="flex-1 justify-center items-center">
@@ -147,19 +188,36 @@ export default function ResourcesScreen() {
         </View>
       ) : (
         <FlatList
-          data={devotionals}
-          keyExtractor={(item) => item.id.toString()}
+          className="flex-1"
+          data={filteredDevotionals}
+          keyExtractor={(item) => String(item.id)}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 16 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#E94B7B"
+            />
+          }
           renderItem={({ item, index }) => (
-            <DevotionCard 
-              item={item}  
+            <DevotionCard
+              item={item}
               index={index}
-              onPress={(devotion) => {
-                handleDevotionalPress(devotion);
-              }}
+              onPress={handleDevotionalPress}
             />
           )}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            isFetchingMore ? (
+              <View className="py-6">
+                <ActivityIndicator size="small" color="#E94B7B" />
+              </View>
+            ) : (
+              <View className="h-20" />
+            )
+          }
           ListHeaderComponent={
             <View className="mb-4">
               {/* Search */}
@@ -169,68 +227,74 @@ export default function ResourcesScreen() {
                   placeholder="Search Devotionals"
                   placeholderTextColor="#9CA3AF"
                   className="ml-2 flex-1 text-white"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
                 />
               </View>
 
-              {/* Today's Devotional - Featured */}
-              <View className="mb-6">
-                <Text className="text-white text-xl font-bold mb-4">
+              <View className="flex-row items-center justify-between mb-4">
+                <Text className="text-white text-xl font-bold">
                   Today&apos;s Devotional
                 </Text>
-                
-                {todaysDevotional ? (
-                  <TouchableOpacity
-                    onPress={() => handleDevotionalPress(todaysDevotional)}
-                    className="rounded-2xl overflow-hidden mb-6 bg-gray-800"
-                    activeOpacity={0.8}
-                  >
-                    <Image
-                      source={{ uri: todaysDevotional.image }}
-                      className="w-full h-64"
-                      resizeMode="cover"
-                    />
-                    <LinearGradient
-                      colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.9)']}
-                      className="absolute bottom-0 left-0 right-0 p-5"
-                    >
-                      <View className="flex-row items-center mb-2">
-                        <Ionicons name="calendar" size={16} color="#E94B7B" />
-                        <Text className="text-gray-300 text-xs ml-2 font-semibold">
-                          {new Date().toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </Text>
-                      </View>
-                      <Text className="text-white text-2xl font-bold uppercase mb-2">
-                        {todaysDevotional.title}
-                      </Text>
-                      <Text className="text-gray-300 text-sm leading-6">
-                        {formatContent(todaysDevotional.content.slice(0, 120))}...
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                ) : (
-                  <View className="bg-gray-800 rounded-2xl p-8 items-center mb-6">
-                    <Ionicons name="calendar-outline" size={56} color="#9CA3AF" />
-                    <Text className="text-gray-400 text-base mt-4 text-center">
-                      No devotional available for today
-                    </Text>
-                    <Text className="text-gray-500 text-sm mt-2 text-center">
-                      Check back tomorrow for new content
-                    </Text>
-                  </View>
+                {total > 0 && (
+                  <Text className="text-gray-400 text-sm">
+                    {total} Total
+                  </Text>
                 )}
               </View>
 
-              {/* Previous Devotionals Header */}
+              {todaysDevotional ? (
+                <TouchableOpacity
+                  onPress={() => handleDevotionalPress(todaysDevotional)}
+                  className="rounded-2xl mb-6"
+                  activeOpacity={0.8}
+                >
+                  <Image
+                    source={todaysDevotional.image ? { uri: todaysDevotional.image } : book}
+                    className="w-full h-64 rounded-2xl bg-white"
+                    resizeMode="contain"
+                  /> 
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.9)']}
+                    className="absolute bottom-0 left-0 right-0 p-5 rounded-b-2xl"
+                  >
+                    <View className="flex-row items-center mb-2">
+                      <Ionicons name="calendar" size={16} color="#E94B7B" />
+                      <Text className="text-gray-300 text-xs ml-2 font-semibold">
+                        {new Date().toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </Text>
+                    </View>
+                    <Text className="text-white text-2xl font-bold uppercase mb-2">
+                      {todaysDevotional.title}
+                    </Text>
+                    <Text className="text-gray-300 text-sm leading-6">
+                      {formatContent(todaysDevotional.content.slice(0, 120))}...
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ) : (
+                <View className="bg-gray-800 rounded-2xl p-8 items-center mb-6">
+                  <Ionicons name="calendar-outline" size={56} color="#9CA3AF" />
+                  <Text className="text-gray-400 text-base mt-4 text-center">
+                    No devotional available for today
+                  </Text>
+                  <Text className="text-gray-500 text-sm mt-2 text-center">
+                    Check back tomorrow for new content
+                  </Text>
+                </View>
+              )}
+
+              {/* Upcoming Devotionals Header */}
               <View className="mb-4">
                 <Text className="text-white text-xl font-bold">
-                  Previous Devotionals
+                  Upcoming Devotionals
                 </Text>
                 <Text className="text-gray-500 text-sm mt-1">
-                  Browse past daily devotionals
+                  Browse upcoming daily devotionals
                 </Text>
               </View>
             </View>
@@ -239,7 +303,7 @@ export default function ResourcesScreen() {
             <View className="py-12 items-center">
               <Ionicons name="book-outline" size={56} color="#9CA3AF" />
               <Text className="text-gray-400 text-base mt-4">
-                No previous devotionals available
+                No upcoming devotionals available
               </Text>
             </View>
           }

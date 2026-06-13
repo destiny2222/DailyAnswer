@@ -1,6 +1,7 @@
 import images from '@/constants/images';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import {
     Image,
@@ -23,6 +24,7 @@ const AboutScreen = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
+      <StatusBar style="light" />
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-700">
         <TouchableOpacity onPress={() => router.back()} className="p-2">
           <Ionicons name="arrow-back" size={24} color="white" />

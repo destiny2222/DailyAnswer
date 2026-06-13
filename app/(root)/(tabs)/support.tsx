@@ -4,6 +4,7 @@ import { confirmPayment, confirmRecurringSupport, createSupport } from "@/libs/p
 import { Ionicons } from "@expo/vector-icons";
 import { useStripe } from "@stripe/stripe-react-native";
 import { Stack, router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -197,6 +198,7 @@ const Support = () => {
   };
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
+      <StatusBar style="light" />
       <Stack.Screen
         options={{
           headerTitle: "Support Us",
