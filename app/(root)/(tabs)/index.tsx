@@ -180,6 +180,9 @@ export default function HomeScreen() {
     const query = searchQuery.toLowerCase().trim();
     return devotionals.filter(
       (d) => d.title?.toLowerCase().includes(query)
+        || d.content?.toLowerCase().includes(query)
+        || d.verses?.toLowerCase().includes(query)
+        || d.key_verse?.toLowerCase().includes(query)
     );
   }, [devotionals, searchQuery]);
   const isSearching = searchQuery.trim().length > 0;
