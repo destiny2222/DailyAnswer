@@ -478,7 +478,7 @@ const greeting = getTimeOfDay(userTimeZone);
                 <View className={`bg-slate-800 rounded-2xl px-4 py-3 flex-row items-center ${isSearching ? "mb-2" : "mb-6"}`}>
                   <Ionicons name="search" size={20} color="#9CA3AF" />
                   <TextInput
-                    placeholder="Search for a spiritual topic"
+                    placeholder="Search within devotion"
                     placeholderTextColor="#9CA3AF"
                     className="flex-1 ml-2 text-white text-[12px] tracking-tighter p-3"
                     value={searchQuery}

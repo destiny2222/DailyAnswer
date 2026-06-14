@@ -43,13 +43,13 @@ const EmailSupportModal = ({ visible, onClose }) => (
         <Text className="text-lg font-semibold mb-2 text-white">Email Us</Text>
         <View className="mb-4">
           <Text className="text-base text-gray-300 mb-1">
-            - For Support: <Text className="text-blue-400">support@thedailyanswer.org</Text>
+            - For Support: <Text className="text-blue-400">womeninleadership206@gmail.com</Text>
           </Text>
           <Text className="text-base text-gray-300 mb-1">
-            - For Feedback: <Text className="text-blue-400">feedback@thedailyanswer.org</Text>
+            - For Feedback: <Text className="text-blue-400">womeninleadership206@gmail.com</Text>
           </Text>
           <Text className="text-base text-gray-300">
-            - For Business Inquiries: <Text className="text-blue-400">business@thedailyanswer.org</Text>
+            - For Business Inquiries: <Text className="text-blue-400">womeninleadership206@gmail.com</Text>
           </Text>
         </View>
 

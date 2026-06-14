@@ -19,7 +19,8 @@ interface RecurringSupport {
   id: string;
   subscriptionId: string;
   amount: number;
-  interval: "monthly" | "yearly";
+  type?: "one_time" | "recurring";
+  interval?: "monthly" | "yearly" | null;
   created: string; // ISO date string
   nextPaymentDate?: string; // Optional, but not used for calculation
   status: string;
@@ -58,15 +59,7 @@ const ManageSupport = () => {
     }, [])
   );
 
-  useEffect(() => {
-    if (initialLoading || supports.length > 0) return;
 
-    const redirectTimer = setTimeout(() => {
-      router.push("/support" as any);
-    }, 3000);
-
-    return () => clearTimeout(redirectTimer);
-  }, [initialLoading, supports.length]);
 
   const handleCancelSupport = (support: RecurringSupport) => {
     Alert.alert(
@@ -172,13 +165,22 @@ const ManageSupport = () => {
               <ActivityIndicator size="large" color="#EC4899" />
             </View>
           ) : supports.length === 0 ? (
-            <View className="items-center py-12">
-              <Text className="text-slate-400 text-lg mb-4">
-                No active recurring donations found.
+            <View className="items-center py-12 px-4 bg-slate-800/40 border border-slate-800 rounded-2xl">
+              <Ionicons name="heart-outline" size={48} color="#64748B" style={{ marginBottom: 16 }} />
+              <Text className="text-white text-lg font-semibold mb-2 text-center">
+                No Active Recurring Donations
               </Text>
-              <Text className="text-slate-500 text-sm text-center">
-                Redirecting you to support options...
+              <Text className="text-slate-400 text-sm text-center mb-6 max-w-xs leading-relaxed">
+                You do not have any ongoing recurring donation contributions at the moment.
               </Text>
+              <TouchableOpacity
+                onPress={() => router.push("/support" as any)}
+                className="bg-pink-600 active:bg-pink-700 px-6 py-3.5 rounded-xl items-center justify-center w-full max-w-xs"
+              >
+                <Text className="text-white text-base font-bold">
+                  Support Our Mission
+                </Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View>
@@ -193,7 +195,7 @@ const ManageSupport = () => {
                         ${support.amount}
                       </Text>
                       <Text className="text-slate-400 text-sm capitalize">
-                        {support.interval} Donations
+                        {support.type === "one_time" ? "One-Time Donation" : `${support.interval} Donation`}
                       </Text>
                     </View>
                     <View
@@ -213,26 +215,30 @@ const ManageSupport = () => {
                     </View>
                   </View>
 
-                  <View className="flex-row items-center mb-4">
-                    <Ionicons name="calendar" size={16} color="#64748B" />
-                    <Text className="text-slate-400 text-sm ml-2">
-                      Next payment: {getNextPaymentDate(support.created, support.interval)}
-                    </Text>
-                  </View>
+                  {support.type !== "one_time" && (
+                    <>
+                      <View className="flex-row items-center mb-4">
+                        <Ionicons name="calendar" size={16} color="#64748B" />
+                        <Text className="text-slate-400 text-sm ml-2">
+                          Next payment: {getNextPaymentDate(support.created, support.interval || "monthly")}
+                        </Text>
+                      </View>
 
-                  <TouchableOpacity
-                    onPress={() => handleCancelSupport(support)}
-                    disabled={loadingId === support.id}
-                    className="bg-red-500/10 border border-red-500/30 rounded-lg py-3 items-center"
-                  >
-                    {loadingId === support.id ? (
-                      <ActivityIndicator size="small" color="#EF4444" />
-                    ) : (
-                      <Text className="text-red-400 font-semibold">
-                        Cancel Recurring Donations
-                      </Text>
-                    )}
-                  </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleCancelSupport(support)}
+                        disabled={loadingId === support.id}
+                        className="bg-red-500/10 border border-red-500/30 rounded-lg py-3 items-center"
+                      >
+                        {loadingId === support.id ? (
+                          <ActivityIndicator size="small" color="#EF4444" />
+                        ) : (
+                          <Text className="text-red-400 font-semibold">
+                            Cancel Recurring Donations
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    </>
+                  )}
                 </View>
               ))}
 

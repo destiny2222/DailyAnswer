@@ -84,8 +84,7 @@ const Subscription = () => {
         merchantDisplayName: "The Daily Answer",
         customerId: customerId,
         paymentIntentClientSecret: clientSecret,
-        allowsDelayedPaymentMethods: true,
-
+        allowsDelayedPaymentMethods: false,
       });
       
       if (initError) {
