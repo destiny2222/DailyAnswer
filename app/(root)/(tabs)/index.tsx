@@ -179,13 +179,10 @@ export default function HomeScreen() {
     if (!searchQuery.trim()) return devotionals;
     const query = searchQuery.toLowerCase().trim();
     return devotionals.filter(
-      (d) =>
-        d.title?.toLowerCase().includes(query) ||
-        d.content?.toLowerCase().includes(query) ||
-        d.verses?.toLowerCase().includes(query) ||
-        d.key_verse?.toLowerCase().includes(query)
+      (d) => d.title?.toLowerCase().includes(query)
     );
   }, [devotionals, searchQuery]);
+  const isSearching = searchQuery.trim().length > 0;
 
  const getTimeOfDay = (timeZone = 'Africa/Lagos') => {
   const hour = Number(
@@ -392,7 +389,7 @@ const greeting = getTimeOfDay(userTimeZone);
           ListHeaderComponent={
             <>
               {/* Header */}
-              <View className="px-6 pt-14 pb-6">
+              <View className={`px-6 pt-14 ${isSearching ? "pb-2" : "pb-6"}`}>
                 <View className="flex-row items-center justify-between mb-6">
                   <View>
                     <Text className="text-white/70 text-sm">
@@ -478,7 +475,7 @@ const greeting = getTimeOfDay(userTimeZone);
                 )}
 
                 {/* Search Bar */}
-                <View className="bg-slate-800 rounded-2xl px-4 py-3 flex-row items-center mb-6">
+                <View className={`bg-slate-800 rounded-2xl px-4 py-3 flex-row items-center ${isSearching ? "mb-2" : "mb-6"}`}>
                   <Ionicons name="search" size={20} color="#9CA3AF" />
                   <TextInput
                     placeholder="Search for a spiritual topic"
@@ -499,71 +496,75 @@ const greeting = getTimeOfDay(userTimeZone);
                 </View>
               </View>
 
-              {/* TODAY'S DEVOTIONAL SECTION - Featured (OUTSIDE the header View) */}
-              <View className="px-6 mb-4">
-                <Text className="text-white text-xl font-bold mb-4">
-                  Today&apos;s Devotional
-                </Text>
+              {!isSearching && (
+                <>
+                  {/* TODAY'S DEVOTIONAL SECTION - Featured (OUTSIDE the header View) */}
+                  <View className="px-6 mb-4">
+                    <Text className="text-white text-xl font-bold mb-4">
+                      Today&apos;s Devotional
+                    </Text>
 
-                {todaysDevotional ? (
-                  <TouchableOpacity
-                    onPress={() => handleDevotionalPress(todaysDevotional)}
-                    className="rounded-2xl mb-6"
-                    activeOpacity={0.8}
-                  >
-                    <Image
-                      source={todaysDevotional.image ? { uri: todaysDevotional.image } : book}
-                      className="w-full h-56 rounded-2xl bg-white"
-                      resizeMode="contain"
-                    /> 
-                    <LinearGradient
-                      colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']}
-                      className="absolute bottom-0 left-0 right-0 p-4 rounded-b-2xl"
-                    >
-                      <View className="flex-row items-center mb-2">
-                        <Ionicons name="calendar" size={16} color="#FFF" />
-                        <Text className="text-white/90 text-xs ml-2">
-                          {new Date().toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
+                    {todaysDevotional ? (
+                      <TouchableOpacity
+                        onPress={() => handleDevotionalPress(todaysDevotional)}
+                        className="rounded-2xl mb-6"
+                        activeOpacity={0.8}
+                      >
+                        <Image
+                          source={todaysDevotional.image ? { uri: todaysDevotional.image } : book}
+                          className="w-full h-56 rounded-2xl bg-white"
+                          resizeMode="contain"
+                        /> 
+                        <LinearGradient
+                          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']}
+                          className="absolute bottom-0 left-0 right-0 p-4 rounded-b-2xl"
+                        >
+                          <View className="flex-row items-center mb-2">
+                            <Ionicons name="calendar" size={16} color="#FFF" />
+                            <Text className="text-white/90 text-xs ml-2">
+                              {new Date().toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                month: 'long',
+                                day: 'numeric',
+                              })}
+                            </Text>
+                          </View>
+                          <Text className="text-white text-2xl font-bold mb-2">
+                            {todaysDevotional.title}
+                          </Text>
+                          <Text className="text-white/90 text-sm leading-6">
+                            {formatContent(todaysDevotional.content.slice(0, 100))}...
+                          </Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    ) : (
+                      <View className="bg-slate-800 rounded-2xl p-6 items-center mb-6">
+                        <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
+                        <Text className="text-white/70 text-sm mt-4">
+                          No devotional available for today
                         </Text>
                       </View>
-                      <Text className="text-white text-2xl font-bold mb-2">
-                        {todaysDevotional.title}
-                      </Text>
-                      <Text className="text-white/90 text-sm leading-6">
-                        {formatContent(todaysDevotional.content.slice(0, 100))}...
-                      </Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                ) : (
-                  <View className="bg-slate-800 rounded-2xl p-6 items-center mb-6">
-                    <Ionicons name="calendar-outline" size={48} color="#9CA3AF" />
-                    <Text className="text-white/70 text-sm mt-4">
-                      No devotional available for today
-                    </Text>
+                    )}
                   </View>
-                )}
-              </View>
 
-              {/* PREVIOUS DEVOTIONALS Section Header */}
-              <View className="px-6 mb-4">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-white text-xl font-bold">
-                    Previous Devotionals
-                  </Text>
-                  <TouchableOpacity onPress={() => router.push('/resources')}>
-                    <View className="flex-row items-center">
-                      <Text className="text-[#E94B7B] text-sm font-semibold mr-1">
-                        See all
+                  {/* PREVIOUS DEVOTIONALS Section Header */}
+                  <View className="px-6 mb-4">
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-white text-xl font-bold">
+                        Previous Devotionals
                       </Text>
-                      <Ionicons name="chevron-forward" size={16} color="#E94B7B" />
+                      <TouchableOpacity onPress={() => router.push('/resources')}>
+                        <View className="flex-row items-center">
+                          <Text className="text-[#E94B7B] text-sm font-semibold mr-1">
+                            See all
+                          </Text>
+                          <Ionicons name="chevron-forward" size={16} color="#E94B7B" />
+                        </View>
+                      </TouchableOpacity>
                     </View>
-                  </TouchableOpacity>
-                </View>
-              </View>
+                  </View>
+                </>
+              )}
             </>
           }
           ListEmptyComponent={

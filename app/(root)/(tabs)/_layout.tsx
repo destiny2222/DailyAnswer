@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
@@ -9,6 +9,47 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+
+const TAB_ICON_NAMES: Record<string, keyof typeof Ionicons.glyphMap> = {
+  index: 'home',
+  resources: 'book',
+  note: 'document-text',
+  profile: 'person',
+};
+
+const TabIcon = ({
+  routeName,
+  isFocused,
+}: {
+  routeName: string;
+  isFocused: boolean;
+}) => {
+  const iconName = TAB_ICON_NAMES[routeName];
+  const scale = useSharedValue(isFocused ? 1.2 : 1);
+
+  useEffect(() => {
+    scale.value = withSpring(isFocused ? 1.2 : 1, {
+      stiffness: 200,
+      damping: 10,
+    });
+  }, [isFocused, scale]);
+
+  const animatedIconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  if (!iconName) return null;
+
+  return (
+    <Animated.View style={animatedIconStyle}>
+      <Ionicons
+        name={isFocused ? iconName : `${iconName}-outline` as keyof typeof Ionicons.glyphMap}
+        size={24}
+        color="#FFFFFF"
+      />
+    </Animated.View>
+  );
+};
 
 const CustomTabBar = ({ state, descriptors, navigation }: any) => {
   const insets = useSafeAreaInsets();
@@ -45,44 +86,12 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
          stiffness: 120,
       });
     }
-  }, [state.index, tabWidth, visibleRoutes, pillWidth]);
+  }, [pillWidth, state.index, state.routes, tabWidth, translateX, visibleRoutes]);
 
   const animatedPillStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
     opacity: barWidth > 0 ? 1 : 0,
   }));
-
-  const getIcon = (name: string, color: string, isFocused: boolean) => {
-    const size = 24;
-    const icons: Record<string, any> = {
-      index: "home",
-      resources: "book",
-      note: "document-text",
-      profile: "person",
-    };
-    
-    const iconName = icons[name];
-    if (!iconName) return null;
-
-    const scale = useSharedValue(isFocused ? 1.2 : 1);
-
-    useEffect(() => {
-      scale.value = withSpring(isFocused ? 1.2 : 1, {
-        stiffness: 200,
-        damping: 10
-      });
-    }, [isFocused]);
-
-    const animatedIconStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: scale.value }],
-    }));
-
-    return (
-      <Animated.View style={animatedIconStyle}>
-        <Ionicons name={(isFocused ? iconName : `${iconName}-outline`) as any} size={size} color={color} />
-      </Animated.View>
-    );
-  };
 
   return (
     <View style={[styles.container, { bottom: insets.bottom + 10 }]}>
@@ -125,7 +134,7 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
               style={styles.tabItem}
               activeOpacity={0.7}
             >
-              {getIcon(route.name, isFocused ? '#FFFFFF' : '#64748B', isFocused)}
+              <TabIcon routeName={route.name} isFocused={isFocused} />
             </TouchableOpacity>
           );
         })}

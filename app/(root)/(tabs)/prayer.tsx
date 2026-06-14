@@ -2,13 +2,16 @@ import AuthGuardModal from '@/components/AuthGuardModal';
 import CustomAlert from '@/components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { memo, useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -24,6 +27,7 @@ import {
   updatePrayer,
 } from '../../../libs/prayer';
 import { StatusBar } from 'expo-status-bar';
+import { ApiError } from '../../../utils/api';
 
 type TabType = 'list' | 'answered';
 
@@ -33,6 +37,65 @@ type AlertInfo = {
   message: string;
   type: 'success' | 'error';
 };
+
+const formatPrayerDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const time = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const day = date.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  return `${time} ${day}`;
+};
+
+const PrayerListItem = memo(function PrayerListItem({
+  item,
+  onPress,
+}: {
+  item: Prayer;
+  onPress: (prayer: Prayer) => void;
+}) {
+  return (
+    <TouchableOpacity
+      className="mb-4 overflow-hidden rounded-2xl border border-white/5 bg-slate-800"
+      onPress={() => onPress(item)}
+      activeOpacity={0.85}
+    >
+      <View className="p-4">
+        <View className="mb-3 flex-row items-start justify-between gap-3">
+          <View className="flex-1">
+            <Text className="mb-2 text-lg font-bold text-white" numberOfLines={2}>
+              {item.title}
+            </Text>
+            <Text className="text-sm leading-6 text-slate-300" numberOfLines={3}>
+              {item.note}
+            </Text>
+          </View>
+          <View className={`rounded-full p-2 ${item.is_answered ? 'bg-emerald-500/15' : 'bg-[#E94B7B]/15'}`}>
+            <Ionicons
+              name={item.is_answered ? 'checkmark-circle' : 'heart-outline'}
+              size={20}
+              color={item.is_answered ? '#34D399' : '#E94B7B'}
+            />
+          </View>
+        </View>
+
+        <View className="flex-row items-center justify-between border-t border-white/5 pt-3">
+          <View className="flex-row items-center">
+            <Ionicons name="time-outline" size={14} color="#94A3B8" />
+            <Text className="ml-1 text-xs text-slate-400">{formatPrayerDate(item.created_at)}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#64748B" />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 const PrayerScreen = () => {
   const router = useRouter();
@@ -44,7 +107,6 @@ const PrayerScreen = () => {
   const [isDetailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedPrayer, setSelectedPrayer] = useState<Prayer | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [authenticated, setAuthenticated] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [alertInfo, setAlertInfo] = useState<AlertInfo>({
     visible: false,
@@ -62,8 +124,7 @@ const PrayerScreen = () => {
       setLoading(true);
       const data = await getPrayers();
       setPrayers(data || []);
-    } catch (error) {
-      
+    } catch {
       setPrayers([]);
     } finally {
       setLoading(false);
@@ -74,7 +135,6 @@ const PrayerScreen = () => {
     useCallback(() => {
       const checkAuth = async () => {
         const auth = await isAuthenticated();
-        setAuthenticated(auth);
         if (auth) {
           loadPrayers();
         } else {
@@ -102,10 +162,10 @@ const PrayerScreen = () => {
       setTitle('');
       setNote('');
       setAddModalVisible(false);
-      loadPrayers();
+      await loadPrayers();
       showAlert('Success', 'Prayer added successfully', 'success');
     } catch (error) {
-      showAlert('Error', 'Failed to create prayer', 'error');
+      showAlert('Error', ApiError.getMessage(error), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -119,16 +179,28 @@ const PrayerScreen = () => {
 
     setIsSaving(true);
     try {
-      await updatePrayer(selectedPrayer.id, { title: title.trim(), note: note.trim() });
+      const updatedPrayer = await updatePrayer(selectedPrayer.id, { title: title.trim(), note: note.trim() });
+      const nextPrayer = updatedPrayer || {
+        ...selectedPrayer,
+        title: title.trim(),
+        note: note.trim(),
+        updated_at: new Date().toISOString(),
+      };
+
+      setPrayers((currentPrayers) =>
+        currentPrayers.map((prayer) =>
+          prayer.id === selectedPrayer.id ? nextPrayer : prayer
+        )
+      );
       setTitle('');
       setNote('');
       setIsEditing(false);
+      setAddModalVisible(false);
       setDetailModalVisible(false);
       setSelectedPrayer(null);
-      loadPrayers();
       showAlert('Success', 'Prayer updated successfully', 'success');
     } catch (error) {
-      showAlert('Error', 'Failed to update prayer', 'error');
+      showAlert('Error', ApiError.getMessage(error), 'error');
     } finally {
       setIsSaving(false);
     }
@@ -141,7 +213,7 @@ const PrayerScreen = () => {
       setSelectedPrayer(null);
       loadPrayers();
       showAlert('Success', 'Prayer marked as answered', 'success');
-    } catch (error) {
+    } catch {
       showAlert('Error', 'Failed to mark prayer as answered', 'error');
     }
   };
@@ -159,7 +231,7 @@ const PrayerScreen = () => {
             setSelectedPrayer(null);
             loadPrayers();
             showAlert('Success', 'Prayer deleted successfully', 'success');
-          } catch (error) {
+          } catch {
             showAlert('Error', 'Failed to delete prayer', 'error');
           }
         },
@@ -174,12 +246,12 @@ const PrayerScreen = () => {
     setAddModalVisible(true);
   };
 
-  const openDetailModal = (prayer: Prayer) => {
+  const openDetailModal = useCallback((prayer: Prayer) => {
     setSelectedPrayer(prayer);
     setTitle(prayer.title);
     setNote(prayer.note);
     setDetailModalVisible(true);
-  };
+  }, []);
 
   const startEditing = () => {
     setDetailModalVisible(false);
@@ -187,40 +259,31 @@ const PrayerScreen = () => {
     setAddModalVisible(true);
   };
 
-  const filteredPrayers = prayers?.filter((prayer) =>
-    activeTab === 'answered' ? prayer.is_answered : !prayer.is_answered
-  ) || [];
+  const filteredPrayers = useMemo(
+    () =>
+      prayers?.filter((prayer) =>
+        activeTab === 'answered' ? prayer.is_answered : !prayer.is_answered
+      ) || [],
+    [activeTab, prayers],
+  );
+  const activePrayerCount = useMemo(
+    () => prayers.filter((prayer) => !prayer.is_answered).length,
+    [prayers],
+  );
+  const answeredPrayerCount = useMemo(
+    () => prayers.filter((prayer) => prayer.is_answered).length,
+    [prayers],
+  );
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const time = date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-    const day = date.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-    return `${time} ${day}`;
-  };
-
-  const renderPrayerItem = ({ item }: { item: Prayer }) => (
-    <TouchableOpacity
-      className="bg-slate-800 p-4 rounded-lg mb-4"
-      onPress={() => openDetailModal(item)}
-    >
-      <Text className="text-lg font-bold text-white mb-2">{item.title}</Text>
-      <Text className="text-gray-300 mb-2" numberOfLines={2}>
-        {item.note}
-      </Text>
-      <Text className="text-xs text-gray-500">{formatDate(item.created_at)}</Text>
-    </TouchableOpacity>
+  const renderPrayerItem = useCallback(
+    ({ item }: { item: Prayer }) => (
+      <PrayerListItem item={item} onPress={openDetailModal} />
+    ),
+    [openDetailModal],
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900" edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar style="light" />
       <AuthGuardModal visible={modalVisible} onClose={() => setModalVisible(false)} />
       <CustomAlert
@@ -230,24 +293,55 @@ const PrayerScreen = () => {
         type={alertInfo.type}
         onClose={() => setAlertInfo({ ...alertInfo, visible: false })}
       />
-      <View className="flex-row items-center px-4 py-10 border-b border-gray-700">
-        <TouchableOpacity onPress={() => router.back()} className="p-2">
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text className="text-xl font-bold text-center flex-1 text-white">Prayer</Text>
-        <View className="w-10" />
+      
+      <View className="px-5 pb-5 pt-6">
+        <View className="mb-6 flex-row items-center justify-between">
+          <TouchableOpacity
+            onPress={() => router.replace('/profile')}
+            className="h-11 w-11 items-center justify-center rounded-full bg-slate-800"
+          >
+            <Ionicons name="arrow-back" size={22} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={openAddModal}
+            className="h-11 w-11 items-center justify-center rounded-full bg-[#E94B7B]"
+          >
+            <Ionicons name="add" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+
+        <Text className="text-3xl font-bold text-white">Prayer Journal</Text>
+        <Text className="mt-2 text-base leading-6 text-slate-400">
+          Keep your requests close and celebrate every answer.
+        </Text>
+
+        <View className="mt-5 flex-row gap-3">
+          <View className="flex-1 rounded-2xl bg-slate-800 p-4">
+            <Text className="text-2xl font-bold text-white">{activePrayerCount}</Text>
+            <Text className="mt-1 text-xs font-semibold uppercase text-slate-400">
+              Active
+            </Text>
+          </View>
+          <View className="flex-1 rounded-2xl bg-slate-800 p-4">
+            <Text className="text-2xl font-bold text-white">{answeredPrayerCount}</Text>
+            <Text className="mt-1 text-xs font-semibold uppercase text-slate-400">
+              Answered
+            </Text>
+          </View>
+        </View>
       </View>
 
-      <View className="flex-row px-4 py-4">
+      <View className="mx-5 mb-4 flex-row rounded-full bg-slate-800 p-1">
         <TouchableOpacity
           onPress={() => setActiveTab('list')}
-          className={`px-6 py-2 rounded-full mr-3 ${
-            activeTab === 'list' ? 'bg-[#E94B7B]' : 'bg-slate-800'
+          className={`flex-1 rounded-full py-3 ${
+            activeTab === 'list' ? 'bg-[#E94B7B]' : 'bg-transparent'
           }`}
+          activeOpacity={0.85}
         >
           <Text
-            className={`font-semibold ${
-              activeTab === 'list' ? 'text-white' : 'text-gray-400'
+            className={`text-center font-semibold ${
+              activeTab === 'list' ? 'text-white' : 'text-slate-400'
             }`}
           >
             Prayer List
@@ -255,13 +349,14 @@ const PrayerScreen = () => {
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setActiveTab('answered')}
-          className={`px-6 py-2 rounded-full ${
-            activeTab === 'answered' ? 'bg-[#E94B7B]' : 'bg-slate-800'
+          className={`flex-1 rounded-full py-3 ${
+            activeTab === 'answered' ? 'bg-[#E94B7B]' : 'bg-transparent'
           }`}
+          activeOpacity={0.85}
         >
           <Text
-            className={`font-semibold ${
-              activeTab === 'answered' ? 'text-white' : 'text-gray-400'
+            className={`text-center font-semibold ${
+              activeTab === 'answered' ? 'text-white' : 'text-slate-400'
             }`}
           >
             Answered
@@ -278,24 +373,43 @@ const PrayerScreen = () => {
           data={filteredPrayers}
           renderItem={renderPrayerItem}
           keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <View className="flex-1 items-center justify-center mt-20">
-              <Ionicons name="heart-outline" size={64} color="#4B5563" />
-              <Text className="text-gray-500 mt-4 text-lg">
+            <View className="mt-16 items-center rounded-3xl border border-dashed border-slate-700 bg-slate-800/50 px-6 py-10">
+              <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-[#E94B7B]/15">
+                <Ionicons
+                  name={activeTab === 'answered' ? 'checkmark-done-outline' : 'heart-outline'}
+                  size={34}
+                  color="#E94B7B"
+                />
+              </View>
+              <Text className="text-center text-lg font-bold text-white">
                 No {activeTab === 'answered' ? 'answered prayers' : 'prayers'} yet
               </Text>
-              <Text className="text-gray-600 mt-1">
-                Tap the '+' button to create one.
+              <Text className="mt-2 text-center text-sm leading-6 text-slate-400">
+                {activeTab === 'answered'
+                  ? 'Answered prayers will appear here when you mark them complete.'
+                  : 'Start a prayer note and come back to it whenever you need.'}
               </Text>
+              {activeTab === 'list' && (
+                <TouchableOpacity
+                  onPress={openAddModal}
+                  className="mt-6 rounded-full bg-[#E94B7B] px-6 py-3"
+                  activeOpacity={0.85}
+                >
+                  <Text className="font-semibold text-white">Add Prayer</Text>
+                </TouchableOpacity>
+              )}
             </View>
           }
         />
       )}
 
       <TouchableOpacity
-        className="absolute bottom-24 right-6 bg-[#E94B7B] w-16 h-16 rounded-full items-center justify-center shadow-lg"
+        className="absolute bottom-40 right-6 h-16 w-16 items-center justify-center rounded-full bg-[#E94B7B] shadow-lg"
         onPress={openAddModal}
+        activeOpacity={0.85}
       >
         <Ionicons name="add" size={32} color="white" />
       </TouchableOpacity>
@@ -304,6 +418,8 @@ const PrayerScreen = () => {
       <Modal
         visible={isAddModalVisible}
         animationType="slide"
+        transparent
+        statusBarTranslucent
         onRequestClose={() => {
           if (isSaving) return;
           setAddModalVisible(false);
@@ -311,146 +427,201 @@ const PrayerScreen = () => {
           setSelectedPrayer(null);
         }}
       >
-        <SafeAreaView className="flex-1 bg-gray-900" edges={['top']}>
-          <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-800">
-            <TouchableOpacity
-              onPress={() => {
-                if (isSaving) return;
-                setAddModalVisible(false);
-                setIsEditing(false);
-                setSelectedPrayer(null);
-              }}
-              className="p-2"
-              disabled={isSaving}
+        <View className="flex-1 justify-end bg-black/60">
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <SafeAreaView
+              className="rounded-t-[32px] border border-slate-800 bg-slate-900"
+              edges={['bottom']}
+              style={styles.sheet}
             >
-              <Ionicons name="arrow-back" size={24} color="white" />
-            </TouchableOpacity>
-            <Text className="text-xl font-bold text-white">
-              {isEditing ? 'Edit Prayer' : 'Add Prayer'}
-            </Text>
-            <TouchableOpacity
-              onPress={isEditing ? handleUpdatePrayer : handleCreatePrayer}
-              disabled={isSaving}
-              className="flex-row items-center"
-            >
-              {isSaving ? (
-                <ActivityIndicator size="small" color="#E94B7B" className="mr-2" />
-              ) : null}
-              <Text className="text-[#E94B7B] font-semibold text-lg">
-                {isSaving ? 'Saving...' : 'Save'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+              <View className="items-center pt-3">
+                <View className="h-1.5 w-12 rounded-full bg-slate-700" />
+              </View>
 
-          <ScrollView className="flex-1 p-4">
-            <Text className="text-gray-200 mb-4">
-              {new Date().toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true,
-              })}
-            </Text>
+              <View className="flex-row items-center justify-between border-b border-slate-800 px-5 py-4">
+                <TouchableOpacity
+                  onPress={() => {
+                    if (isSaving) return;
+                    setAddModalVisible(false);
+                    setIsEditing(false);
+                    setSelectedPrayer(null);
+                  }}
+                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-800"
+                  disabled={isSaving}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="close" size={24} color="white" />
+                </TouchableOpacity>
+                <Text className="flex-1 px-3 text-center text-xl font-bold text-white">
+                  {isEditing ? 'Edit Prayer' : 'Add Prayer'}
+                </Text>
+                <TouchableOpacity
+                  onPress={isEditing ? handleUpdatePrayer : handleCreatePrayer}
+                  disabled={isSaving}
+                  activeOpacity={0.85}
+                  className={`h-11 min-w-[112px] flex-row items-center justify-center rounded-full px-4 ${
+                    isSaving ? 'bg-slate-800' : 'bg-[#E94B7B]'
+                  }`}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" className="mr-2" />
+                  ) : (
+                    <Ionicons name="save-outline" size={18} color="#FFFFFF" />
+                  )}
+                  <Text className="font-semibold text-white">
+                    {isSaving ? 'Saving...' : ' Save'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-            <TextInput
-              className="text-lg font-semibold mb-4 p-3 bg-gray-700 text-white rounded-lg"
-              placeholder="Title"
-              placeholderTextColor="#999"
-              value={title}
-              onChangeText={setTitle}
-              editable={!isSaving}
-            />
+              <ScrollView
+                className="px-5 py-6"
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.sheetScrollContent}
+              >
+                <Text className="mb-5 text-sm font-semibold uppercase text-slate-400">
+                  {new Date().toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  })}
+                </Text>
 
-            <TextInput
-              className="text-base p-3 bg-gray-700 text-white rounded-lg min-h-[200px]"
-              placeholder="What would you like to pray about?"
-              placeholderTextColor="#999"
-              value={note}
-              onChangeText={setNote}
-              multiline
-              textAlignVertical="top"
-              editable={!isSaving}
-            />
-          </ScrollView>
-        </SafeAreaView>
+                <TextInput
+                  className="mb-4 h-[60px] rounded-2xl bg-slate-800 px-4 py-4 text-lg font-semibold text-white"
+                  placeholder="Title"
+                  placeholderTextColor="#64748B"
+                  value={title}
+                  onChangeText={setTitle}
+                  editable={!isSaving}
+                />
+
+                <TextInput
+                  className="min-h-[260px] rounded-2xl bg-slate-800 px-4 py-4 text-base leading-6 text-white"
+                  placeholder="What would you like to pray about?"
+                  placeholderTextColor="#64748B"
+                  value={note}
+                  onChangeText={setNote}
+                  multiline
+                  textAlignVertical="top"
+                  editable={!isSaving}
+                />
+              </ScrollView>
+            </SafeAreaView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* Prayer Detail Modal */}
       <Modal
         visible={isDetailModalVisible}
         animationType="slide"
+        transparent
+        statusBarTranslucent
         onRequestClose={() => {
           setDetailModalVisible(false);
           setSelectedPrayer(null);
         }}
       >
-        <SafeAreaView className="flex-1 bg-gray-900" edges={['top']}>
-          <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-800">
-            <TouchableOpacity
-              onPress={() => {
-                setDetailModalVisible(false);
-                setSelectedPrayer(null);
-              }}
-              className="p-2"
-            >
-              <Ionicons name="arrow-back" size={24} color="white" />
-            </TouchableOpacity>
-            <Text className="text-xl font-bold text-white">Prayer</Text>
-            <TouchableOpacity onPress={() => {}}>
-              {/* <Ionicons name="ellipsis-vertical" size={24} color="white" /> */}
-            </TouchableOpacity>
-          </View>
-
-          {selectedPrayer && (
-            <ScrollView className="flex-1 p-6">
-              <Text className="text-sm text-gray-200 mb-6">
-                {formatDate(selectedPrayer.created_at)}
-              </Text>
-
-              <Text className="text-2xl font-bold mb-3 text-white">{selectedPrayer.title}</Text>
-              <Text className="text-sm text-gray-200 mb-6 italic">
-                The Daily Answer Devotional, {new Date(selectedPrayer.created_at).toLocaleDateString('en-US', {
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </Text>
-
-              <Text className="text-base leading-7 text-gray-200">{selectedPrayer.note}</Text>
-            </ScrollView>
-          )}
-
-          {selectedPrayer && (
-            <View className="px-6 pb-6 pt-4 border-t border-gray-800 bg-gray-800">
-              {!selectedPrayer.is_answered && (
-                <TouchableOpacity
-                  className="bg-[#E94B7B] py-4 rounded-full mb-3"
-                  onPress={() => handleMarkAsAnswered(selectedPrayer)}
-                >
-                  <Text className="text-white text-center font-semibold text-lg">
-                    Mark as Answered
-                  </Text>
-                </TouchableOpacity>
-              )}
-              <View className="flex-row gap-3">
-                <TouchableOpacity
-                  className="flex-1 bg-gray-200 py-4 rounded-full"
-                  onPress={startEditing}
-                >
-                  <Text className="text-gray-800 text-center font-semibold">Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className="flex-1 bg-red-50 py-4 rounded-full"
-                  onPress={() => handleDeletePrayer(selectedPrayer)}
-                >
-                  <Text className="text-red-500 text-center font-semibold">Delete</Text>
-                </TouchableOpacity>
-              </View>
+        <View className="flex-1 justify-end bg-black/60">
+          <SafeAreaView
+            className="rounded-t-[32px] border border-slate-800 bg-slate-900"
+            edges={['bottom']}
+            style={styles.sheet}
+          >
+            <View className="items-center pt-3">
+              <View className="h-1.5 w-12 rounded-full bg-slate-700" />
             </View>
-          )}
-        </SafeAreaView>
+
+            <View className="flex-row items-center justify-between border-b border-slate-800 bg-slate-900 px-5 py-4">
+              <TouchableOpacity
+                onPress={() => {
+                  setDetailModalVisible(false);
+                  setSelectedPrayer(null);
+                }}
+                className="h-11 w-11 items-center justify-center rounded-full bg-slate-800"
+                activeOpacity={0.85}
+              >
+                <Ionicons name="close" size={24} color="white" />
+              </TouchableOpacity>
+              <Text className="flex-1 px-3 text-center text-xl font-bold text-white">Prayer</Text>
+              <View className="h-11 w-11" />
+            </View>
+
+            {selectedPrayer && (
+              <ScrollView className="px-6 py-6" showsVerticalScrollIndicator={false}>
+                <View className={`mb-5 self-start rounded-full px-3 py-2 ${
+                  selectedPrayer.is_answered ? 'bg-emerald-500/15' : 'bg-[#E94B7B]/15'
+                }`}>
+                  <Text className={`text-xs font-bold uppercase ${
+                    selectedPrayer.is_answered ? 'text-emerald-300' : 'text-[#E94B7B]'
+                  }`}>
+                    {selectedPrayer.is_answered ? 'Answered' : 'In Prayer'}
+                  </Text>
+                </View>
+
+                <Text className="mb-3 text-3xl font-bold leading-10 text-white">{selectedPrayer.title}</Text>
+                <Text className="mb-8 text-sm text-slate-400">
+                  {formatPrayerDate(selectedPrayer.created_at)}
+                </Text>
+
+                <View className="rounded-3xl bg-slate-800 p-5">
+                  <Text className="text-base leading-8 text-slate-200">{selectedPrayer.note}</Text>
+                </View>
+              </ScrollView>
+            )}
+
+            {selectedPrayer && (
+              <View className="border-t border-slate-800 bg-slate-900 px-6 pb-6 pt-4">
+                {!selectedPrayer.is_answered && (
+                  <TouchableOpacity
+                    className="mb-3 rounded-full bg-[#E94B7B] py-4"
+                    onPress={() => handleMarkAsAnswered(selectedPrayer)}
+                    activeOpacity={0.85}
+                  >
+                    <Text className="text-white text-center font-semibold text-lg">
+                      Mark as Answered
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <View className="flex-row gap-3">
+                  <TouchableOpacity
+                    className="flex-1 rounded-full bg-slate-800 py-4"
+                    onPress={startEditing}
+                    activeOpacity={0.85}
+                  >
+                    <Text className="text-center font-semibold text-white">Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    className="flex-1 rounded-full bg-red-500/15 py-4"
+                    onPress={() => handleDeletePrayer(selectedPrayer)}
+                    activeOpacity={0.85}
+                  >
+                    <Text className="text-center font-semibold text-red-300">Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </SafeAreaView>
+        </View>
       </Modal>
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+  },
+  sheet: {
+    maxHeight: '92%',
+    width: '100%',
+  },
+  sheetScrollContent: {
+    paddingBottom: 32,
+  },
+});
 
 export default PrayerScreen;

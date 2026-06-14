@@ -220,11 +220,24 @@ const Login = () => {
   return (
     <View className="flex-1 bg-slate-900 pt-7">
       <StatusBar style="light" animated={true}/>
+      <View className="flex-row items-center px-4 py-4 border-b border-slate-800">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text className="flex-1 text-center text-xl font-bold text-white">
+          Sign In
+        </Text>
+        <View className="w-11" />
+      </View>
 
       <KeyboardAvoidingView  behavior={Platform.OS === "ios" ? "padding" : "height"}  className="flex-1" >
-        <ScrollView  className="flex-1 " contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }}  showsVerticalScrollIndicator={false}  >
+        <ScrollView  className="flex-1 " contentContainerStyle={{ flexGrow: 1 }}  showsVerticalScrollIndicator={false}  >
           {/* Header Section */}
-          <View className="px-6 pt-16 pb-8">
+          <View className="px-6 pt-10 pb-8">
             <View className="items-center mb-8">
               {/* <View className="w-20 h-20 rounded-full bg-[#E94B7B]/20 items-center justify-center mb-4">
                 <Ionicons name="flower" size={48} color="#FB923C" />
@@ -385,7 +398,7 @@ const Login = () => {
             {/* Sign Up Link */}
             <View className="flex-row items-center justify-center pb-8 mt-4">
               <Text className="text-white/60 text-base">
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
               </Text>
               <Link href="/(auth)/signup" asChild>
                 <TouchableOpacity>

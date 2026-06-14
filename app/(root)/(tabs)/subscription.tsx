@@ -1,24 +1,22 @@
+import logoImage from "@/assets/images/logo.jpeg";
+import CustomAlert from "@/components/CustomAlert";
+import { confirmPayment, createSubscription, getSubscriptionPlans, Plan } from "@/libs/payment";
+import { useGlobalContext } from "@/utils/auth";
 import { Ionicons } from "@expo/vector-icons";
 import { useStripe } from "@stripe/stripe-react-native";
-import { Stack, router } from "expo-router";
+import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    Linking,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View,
-    Alert,
+  ActivityIndicator,
+  Image,
+  Linking,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import logoImage from "@/assets/images/logo.jpeg";
-import { useGlobalContext } from "@/utils/auth";
-import { createSubscription, getSubscriptionPlans, Plan, confirmPayment } from "@/libs/payment";
-import Toast from "react-native-toast-message";
-import CustomAlert from "@/components/CustomAlert";
-import { StatusBar } from "expo-status-bar";
 
 const Subscription = () => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
@@ -187,13 +185,19 @@ const Subscription = () => {
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
       <StatusBar style="light" />
-      <Stack.Screen options={{ 
-        headerTitle: 'Subscription',
-        headerBackTitle: 'Back',
-        headerStyle: { backgroundColor: '#1E293B' },
-        headerTintColor: '#fff',
-        headerTitleStyle: { color: '#fff' },
-       }} />
+      <View className="flex-row items-center px-4 py-4 border-b border-slate-800">
+        <TouchableOpacity
+          onPress={() => router.replace('/profile')}
+          className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text className="flex-1 text-center text-xl font-bold text-white">
+          Subscription
+        </Text>
+        <View className="w-11" />
+      </View>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <View className="items-center px-6 py-8">
           <Image source={logoImage} className="w-24 h-24 rounded-full mb-6"  />
@@ -292,7 +296,7 @@ const Subscription = () => {
           </View>
 
           <Text className="text-slate-500 text-xs text-center">
-            By clicking "Subscribe", you agree to our Membership Terms of Service. Your payment method will, based on your selection, be charged on a recurring basis $15.00 (monthly), $60.00 or $180.00 (yearly) (prices are subject to change).
+            By clicking "Subscribe", you agree to our Membership Terms of Service. Your payment method will, based on your selection, be charged on a recurring basis $9.99 per quarter, $39.96 yearly (prices are subject to change).
             {"\n\n"}
             Your Daily Answer membership will be billed in your local currency, using exchange rates set by Apple/Play. Your payments will be processed by Apple/Play within 24 hours of the end of the current billing cycle.
           </Text>

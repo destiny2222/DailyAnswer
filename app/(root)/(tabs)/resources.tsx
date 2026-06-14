@@ -7,10 +7,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, RefreshControl, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, Keyboard, RefreshControl, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Devotional, fetchDevotionals, fetchTodaysDevotional, fetchUpcomingDevotionals } from "../../../libs/devotional";
+import { Devotional, fetchDevotionals, fetchTodaysDevotional } from "../../../libs/devotional";
 import { canAccessPremiumContent } from '../../../utils/auth';
 import { formatDateShort } from "../../../utils/date";
 
@@ -117,8 +117,7 @@ export default function ResourcesScreen() {
         todayToFilter = todayData;
       }
 
-      // Using 15 or 20 is usually better for mobile performance than 50
-      const { data: allData, meta } = await fetchUpcomingDevotionals(pageNumber, 15);
+      const { data: allData, meta } = await fetchDevotionals(pageNumber, 10);
 
       if (meta?.total) setTotal(meta.total);
 
@@ -154,13 +153,18 @@ export default function ResourcesScreen() {
     loadDevotionals(1, false);
   }, []);
 
-  const filteredDevotionals = devotionals.filter(d =>
-    d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    d.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredDevotionals = useMemo(() => {
+    if (!searchQuery.trim()) return devotionals;
+    const query = searchQuery.toLowerCase().trim();
+
+    return devotionals.filter((d) =>
+      d.title?.toLowerCase().includes(query)
+    );
+  }, [devotionals, searchQuery]);
+  const isSearching = searchQuery.trim().length > 0;
 
   const handleLoadMore = () => {
-    if (!isFetchingMore && hasMore && searchQuery.length === 0) {
+    if (!isFetchingMore && hasMore && !searchQuery.trim()) {
       loadDevotionals(page + 1, true);
     }
   };
@@ -178,7 +182,7 @@ export default function ResourcesScreen() {
   };
 
   return (
-    <SafeAreaView className="bg-gray-900 h-screen">
+    <SafeAreaView className="bg-gray-900 h-screen pt-5">
       <StatusBar style="light" />
       <TopNav title="Devotional" />
       {isLoading ? (
@@ -200,6 +204,8 @@ export default function ResourcesScreen() {
               tintColor="#E94B7B"
             />
           }
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
           renderItem={({ item, index }) => (
             <DevotionCard
               item={item}
@@ -219,9 +225,9 @@ export default function ResourcesScreen() {
             )
           }
           ListHeaderComponent={
-            <View className="mb-4">
+            <View className={isSearching ? "mb-1" : "mb-4"}>
               {/* Search */}
-              <View className="flex-row items-center bg-gray-800 rounded-full px-4 py-2 mt-4 mb-6">
+              <View className={`flex-row items-center bg-gray-800 rounded-full px-4 py-2 mt-4 ${isSearching ? "mb-3" : "mb-6"}`}>
                 <Ionicons name="search" size={20} color="#9CA3AF" />
                 <TextInput
                   placeholder="Search Devotionals"
@@ -229,81 +235,96 @@ export default function ResourcesScreen() {
                   className="ml-2 flex-1 text-white"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
-              </View>
-
-              <View className="flex-row items-center justify-between mb-4">
-                <Text className="text-white text-xl font-bold">
-                  Today&apos;s Devotional
-                </Text>
-                {total > 0 && (
-                  <Text className="text-gray-400 text-sm">
-                    {total} Total
-                  </Text>
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => { setSearchQuery(''); Keyboard.dismiss(); }}>
+                    <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
                 )}
               </View>
 
-              {todaysDevotional ? (
-                <TouchableOpacity
-                  onPress={() => handleDevotionalPress(todaysDevotional)}
-                  className="rounded-2xl mb-6"
-                  activeOpacity={0.8}
-                >
-                  <Image
-                    source={todaysDevotional.image ? { uri: todaysDevotional.image } : book}
-                    className="w-full h-64 rounded-2xl bg-white"
-                    resizeMode="contain"
-                  /> 
-                  <LinearGradient
-                    colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.9)']}
-                    className="absolute bottom-0 left-0 right-0 p-5 rounded-b-2xl"
-                  >
-                    <View className="flex-row items-center mb-2">
-                      <Ionicons name="calendar" size={16} color="#E94B7B" />
-                      <Text className="text-gray-300 text-xs ml-2 font-semibold">
-                        {new Date().toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
+              {!isSearching && (
+                <>
+                  <View className="flex-row items-center justify-between mb-4">
+                    <Text className="text-white text-xl font-bold">
+                      Today&apos;s Devotional
+                    </Text>
+                    {total > 0 && (
+                      <Text className="text-gray-400 text-sm">
+                        {total} Total
+                      </Text>
+                    )}
+                  </View>
+
+                  {todaysDevotional ? (
+                    <TouchableOpacity
+                      onPress={() => handleDevotionalPress(todaysDevotional)}
+                      className="rounded-2xl mb-6"
+                      activeOpacity={0.8}
+                    >
+                      <Image
+                        source={todaysDevotional.image ? { uri: todaysDevotional.image } : book}
+                        className="w-full h-64 rounded-2xl bg-white"
+                        resizeMode="contain"
+                      /> 
+                      <LinearGradient
+                        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.9)']}
+                        className="absolute bottom-0 left-0 right-0 p-5 rounded-b-2xl"
+                      >
+                        <View className="flex-row items-center mb-2">
+                          <Ionicons name="calendar" size={16} color="#E94B7B" />
+                          <Text className="text-gray-300 text-xs ml-2 font-semibold">
+                            {new Date().toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                          </Text>
+                        </View>
+                        <Text className="text-white text-2xl font-bold uppercase mb-2">
+                          {todaysDevotional.title}
+                        </Text>
+                        <Text className="text-gray-300 text-sm leading-6">
+                          {formatContent(todaysDevotional.content.slice(0, 120))}...
+                        </Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  ) : (
+                    <View className="bg-gray-800 rounded-2xl p-8 items-center mb-6">
+                      <Ionicons name="calendar-outline" size={56} color="#9CA3AF" />
+                      <Text className="text-gray-400 text-base mt-4 text-center">
+                        No devotional available for today
+                      </Text>
+                      <Text className="text-gray-500 text-sm mt-2 text-center">
+                        Check back tomorrow for new content
                       </Text>
                     </View>
-                    <Text className="text-white text-2xl font-bold uppercase mb-2">
-                      {todaysDevotional.title}
-                    </Text>
-                    <Text className="text-gray-300 text-sm leading-6">
-                      {formatContent(todaysDevotional.content.slice(0, 120))}...
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              ) : (
-                <View className="bg-gray-800 rounded-2xl p-8 items-center mb-6">
-                  <Ionicons name="calendar-outline" size={56} color="#9CA3AF" />
-                  <Text className="text-gray-400 text-base mt-4 text-center">
-                    No devotional available for today
-                  </Text>
-                  <Text className="text-gray-500 text-sm mt-2 text-center">
-                    Check back tomorrow for new content
-                  </Text>
-                </View>
-              )}
+                  )}
 
-              {/* Upcoming Devotionals Header */}
-              <View className="mb-4">
-                <Text className="text-white text-xl font-bold">
-                  Upcoming Devotionals
-                </Text>
-                <Text className="text-gray-500 text-sm mt-1">
-                  Browse upcoming daily devotionals
-                </Text>
-              </View>
+                  {/* Previous Devotionals Header */}
+                  <View className="mb-4">
+                    <Text className="text-white text-xl font-bold">
+                      Previous Devotionals
+                    </Text>
+                    <Text className="text-gray-500 text-sm mt-1">
+                      Browse previous daily devotionals
+                    </Text>
+                  </View>
+                </>
+              )}
             </View>
           }
           ListEmptyComponent={
             <View className="py-12 items-center">
               <Ionicons name="book-outline" size={56} color="#9CA3AF" />
-              <Text className="text-gray-400 text-base mt-4">
-                No upcoming devotionals available
+              <Text className="text-gray-400 text-base mt-4 text-center">
+                {isSearching
+                  ? `No devotionals found for "${searchQuery}"`
+                  : 'No previous devotionals available'}
               </Text>
             </View>
           }

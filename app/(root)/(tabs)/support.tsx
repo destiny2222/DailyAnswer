@@ -3,7 +3,7 @@ import CustomAlert from "@/components/CustomAlert";
 import { confirmPayment, confirmRecurringSupport, createSupport } from "@/libs/payment";
 import { Ionicons } from "@expo/vector-icons";
 import { useStripe } from "@stripe/stripe-react-native";
-import { Stack, router } from "expo-router";
+import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
 import {
@@ -199,15 +199,19 @@ const Support = () => {
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
       <StatusBar style="light" />
-      <Stack.Screen
-        options={{
-          headerTitle: "Support Us",
-          headerBackTitle: "Back",
-          headerStyle: { backgroundColor: "#1E293B" },
-          headerTintColor: "#fff",
-          headerTitleStyle: { color: "#fff" },
-        }}
-      />
+      <View className="flex-row items-center px-4 py-4 border-b border-slate-800">
+        <TouchableOpacity
+          onPress={() => router.replace('/profile')}
+          className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text className="flex-1 text-center text-xl font-bold text-white">
+          Support Us
+        </Text>
+        <View className="w-11" />
+      </View>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <View className="items-center px-6 py-8">
           <Image source={logoImage} className="w-24 h-24 rounded-full mb-6" />
@@ -235,13 +239,7 @@ const Support = () => {
               <Text className="text-slate-300 text-base ml-3">
                 Support quality content creation
               </Text>
-            </View>
-            <View className="flex-row items-center mb-3">
-              <Ionicons name="globe" size={24} color="#E94B7B" />
-              <Text className="text-slate-300 text-base ml-3">
-                Keep the app free for those who need it
-              </Text>
-            </View>
+            </View> 
           </View>
 
           {/* Predefined Amounts */}

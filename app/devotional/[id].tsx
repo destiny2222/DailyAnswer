@@ -3,11 +3,13 @@ import { formatDateLong } from '@/utils/date';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import * as Speech from 'expo-speech';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   ScrollView,
@@ -20,6 +22,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { detailDevotional } from '../../libs/devotional';
+
+const SAVED_DEVOTIONAL_IDS_KEY = 'saved_devotional_ids';
 
 const stripHtml = (html: string) =>
   html
@@ -68,6 +72,8 @@ const DevotionalDetail = () => {
   const [showFormatMenu, setShowFormatMenu] = useState(false);
   const [isBold, setIsBold] = useState(false);
   const [fontSize, setFontSize] = useState(18);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Audio state management
   const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
@@ -105,6 +111,7 @@ const DevotionalDetail = () => {
       setLoading(true);
       const data = await detailDevotional(id as string);
       setDevotional(data);
+      await checkSavedStatus(String(data.id));
     } catch (error) {
 
     } finally {
@@ -112,8 +119,45 @@ const DevotionalDetail = () => {
     }
   };
 
+  const getSavedDevotionalIds = async () => {
+    const saved = await SecureStore.getItemAsync(SAVED_DEVOTIONAL_IDS_KEY);
+    if (!saved) return [];
 
+    try {
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed.map(String) : [];
+    } catch (error) {
+      return [];
+    }
+  };
 
+  const checkSavedStatus = async (devotionalId: string) => {
+    const savedIds = await getSavedDevotionalIds();
+    setIsSaved(savedIds.includes(devotionalId));
+  };
+
+  const handleSave = async () => {
+    if (!devotional || isSaving) return;
+
+    try {
+      setIsSaving(true);
+      const devotionalId = String(devotional.id);
+      const savedIds = await getSavedDevotionalIds();
+      const nextSavedIds = savedIds.includes(devotionalId)
+        ? savedIds.filter((savedId) => savedId !== devotionalId)
+        : [...savedIds, devotionalId];
+
+      await SecureStore.setItemAsync(
+        SAVED_DEVOTIONAL_IDS_KEY,
+        JSON.stringify(nextSavedIds),
+      );
+      setIsSaved(nextSavedIds.includes(devotionalId));
+    } catch (error) {
+      Alert.alert('Save Error', 'Unable to update this devotional right now.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleShare = async () => {
     if (!devotional) return;
@@ -385,13 +429,13 @@ const DevotionalDetail = () => {
             </View>
           </TouchableOpacity>
 
-          {/* Key Verse */}
+          {/* Scripture References */}
           {devotional.key_verse && (
             <View className="bg-pink-50 rounded-xl p-4 mb-6">
               <View className="flex-row items-center mb-2">
                 <Ionicons name="bookmark" size={18} color="#E94B7B" />
                 <Text className="text-sm font-bold text-[#E94B7B] ml-2">
-                  Key Verse
+                  Scripture References
                 </Text>
               </View>
               <Text className="text-gray-800 text-base leading-7 italic font-rubik-semibold font-semibold">
@@ -430,13 +474,13 @@ const DevotionalDetail = () => {
             </View>
           )}
 
-          {/* Related Verses */}
+          {/* Memory Verses */}
           {devotional.verses && (
             <View className="bg-blue-50 rounded-xl p-4 mb-6">
               <View className="flex-row items-center mb-2">
                 <Ionicons name="book-outline" size={18} color="#3B82F6" />
                 <Text className="text-sm font-bold text-blue-700 ml-2">
-                  Scripture References
+                  Memory Verses
                 </Text>
               </View>
               <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
@@ -471,12 +515,19 @@ const DevotionalDetail = () => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              className="flex-1 flex-row items-center justify-center bg-gray-200 py-4 rounded-full"
-              onPress={() => { }}
+              className={`flex-1 flex-row items-center justify-center py-4 rounded-full ${isSaved ? 'bg-[#E94B7B]' : 'bg-gray-200'}`}
+              onPress={handleSave}
               activeOpacity={0.8}
+              disabled={isSaving}
             >
-              <Ionicons name="bookmark-outline" size={20} color="#333" />
-              <Text className="text-gray-800 font-semibold ml-2">Save</Text>
+              <Ionicons
+                name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                size={20}
+                color={isSaved ? '#FFF' : '#333'}
+              />
+              <Text className={`font-semibold ml-2 ${isSaved ? 'text-white' : 'text-gray-800'}`}>
+                {isSaving ? 'Saving...' : isSaved ? 'Saved' : 'Save'}
+              </Text>
             </TouchableOpacity>
           </View>
 

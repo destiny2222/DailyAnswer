@@ -92,12 +92,17 @@ const NotesScreen = () => {
        <AuthGuardModal visible={modalVisible} onClose={() => setModalVisible(false)} />
       <View className="px-4 pt-4 pb-3 bg-gray-900">
         <View className="flex-row items-center justify-between mb-4">
-            <TouchableOpacity onPress={() => router.back()} className="flex-row items-center">
-                <View className="bg-pink-100 rounded-full p-2 mr-3">
-                    <Ionicons name="home-outline" size={24} color="#E94B7B" />
-                </View>
-                <Text className="text-2xl font-bold text-gray-200">Notes</Text>
-            </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.replace('/profile')}
+            className="w-11 h-11 rounded-full bg-gray-800 items-center justify-center"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text className="flex-1 text-center text-2xl font-bold text-gray-200">
+            Notes
+          </Text>
+          <View className="w-11" />
         </View>
         <View className="flex-row items-center bg-gray-800 rounded-full px-4 py-3 shadow-sm border border-gray-800">
           <Ionicons name="search" size={20} color="#999" />

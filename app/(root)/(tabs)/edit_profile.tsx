@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Image, ScrollView, ActivityIndicator } from 'react-native';
 import { useGlobalContext } from '../../../utils/auth';
 import { apiRequest, ApiError } from '../../../utils/api';
 import * as ImagePicker from 'expo-image-picker';
@@ -154,7 +154,7 @@ const handleImageUpload = async (uri: string) => {
             message: 'Profile updated successfully.',
             type: 'success',
         });
-        // router.back();
+        // router.replace('/profile');
       } else {
         setAlertInfo({
             visible: true,
@@ -184,7 +184,20 @@ const handleImageUpload = async (uri: string) => {
   return (
     <SafeAreaView className='flex-1 bg-gray-900' edges={['top']}>
       <StatusBar style="light" />
-    <ScrollView className=" pt-20">
+      <View className="flex-row items-center px-4 py-4 border-b border-gray-800">
+        <TouchableOpacity
+          onPress={() => router.replace('/profile')}
+          className="w-11 h-11 rounded-full bg-gray-800 items-center justify-center"
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text className="flex-1 text-center text-xl font-bold text-white">
+          Edit Profile
+        </Text>
+        <View className="w-11" />
+      </View>
+    <ScrollView>
         <CustomAlert
             visible={alertInfo.visible}
             title={alertInfo.title}
@@ -222,18 +235,6 @@ const handleImageUpload = async (uri: string) => {
             onChangeText={setName}
             placeholder="Enter your name"
             placeholderTextColor="#9CA3AF"
-          />
-        </View>
-
-        <View className="mb-4">
-          <Text className="text-sm font-medium text-gray-300 mb-1">Username</Text>
-          <TextInput
-            className="p-3 bg-gray-800 border border-gray-700 rounded-lg text-white"
-            value={username}
-            onChangeText={setUsername}
-            placeholder="Enter your username"
-            placeholderTextColor="#9CA3AF"
-            autoCapitalize="none"
           />
         </View>
         <View className="mb-6">

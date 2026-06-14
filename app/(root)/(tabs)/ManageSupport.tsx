@@ -2,9 +2,9 @@ import CustomAlert from "@/components/CustomAlert";
 import { cancelRecurringSupport, getSupportPlans } from "@/libs/payment";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { Stack, router } from "expo-router";
+import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -57,6 +57,16 @@ const ManageSupport = () => {
       fetchSupports();
     }, [])
   );
+
+  useEffect(() => {
+    if (initialLoading || supports.length > 0) return;
+
+    const redirectTimer = setTimeout(() => {
+      router.push("/support" as any);
+    }, 3000);
+
+    return () => clearTimeout(redirectTimer);
+  }, [initialLoading, supports.length]);
 
   const handleCancelSupport = (support: RecurringSupport) => {
     Alert.alert(
@@ -135,15 +145,19 @@ const ManageSupport = () => {
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
       <StatusBar style="light" />
-      <Stack.Screen
-        options={{
-          headerTitle: "Manage Support",
-          headerBackTitle: "Back",
-          headerStyle: { backgroundColor: "#1E293B" },
-          headerTintColor: "#fff",
-          headerTitleStyle: { color: "#fff" },
-        }}
-      />
+      <View className="flex-row items-center px-4 py-4 border-b border-slate-800">
+        <TouchableOpacity
+          onPress={() => router.replace('/profile')}
+          className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text className="flex-1 text-center text-xl font-bold text-white">
+          Manage Support
+        </Text>
+        <View className="w-11" />
+      </View>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <View className="px-6 py-8">
           <Text className="text-white text-2xl font-bold mb-2">
@@ -159,11 +173,11 @@ const ManageSupport = () => {
             </View>
           ) : supports.length === 0 ? (
             <View className="items-center py-12">
-              {setTimeout(() => {
-                router.push("/support" as any);
-              }, 3000)}
               <Text className="text-slate-400 text-lg mb-4">
                 No active recurring donations found.
+              </Text>
+              <Text className="text-slate-500 text-sm text-center">
+                Redirecting you to support options...
               </Text>
             </View>
           ) : (

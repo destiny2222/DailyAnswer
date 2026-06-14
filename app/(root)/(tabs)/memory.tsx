@@ -140,31 +140,37 @@ const MemoryVerse = () => {
     </TouchableOpacity>
   )
 
-  if (loading) {
-    return (
-      <SafeAreaView className="flex-1 bg-slate-900">
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#E94B7B" />
-          <Text className="text-slate-400 mt-4">Loading memory verses...</Text>
-        </View>
-      </SafeAreaView>
-    )
-  }
-
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
       <StatusBar style="light" />
-      <View className="flex-1">
+      <View className="flex-1 bg-slate-900">
         {/* Header */}
         <View className="px-4 py-4 border-b border-slate-800">
-          <Text className="text-white text-2xl font-bold">Memory Verses</Text>
-          <Text className="text-slate-400 text-sm mt-1">
-            {memories.length} {memories.length === 1 ? 'verse' : 'verses'} saved
-          </Text>
+          <View className="flex-row items-center">
+            <TouchableOpacity
+              onPress={() => router.replace('/profile')}
+              className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+            <View className="flex-1 ml-4">
+              <Text className="text-white text-2xl font-bold">Memory Verses</Text>
+              <Text className="text-slate-400 text-sm mt-1">
+                {memories.length} {memories.length === 1 ? 'verse' : 'verses'} saved
+              </Text>
+            </View>
+            <View className="w-11" />
+          </View>
         </View>
 
         {/* Memory List */}
-        {memories.length === 0 ? (
+        {loading ? (
+          <View className="flex-1 justify-center items-center">
+            <ActivityIndicator size="large" color="#E94B7B" />
+            <Text className="text-slate-400 mt-4">Loading memory verses...</Text>
+          </View>
+        ) : memories.length === 0 ? (
           <View className="flex-1 justify-center items-center px-6">
             <Ionicons name="book-outline" size={64} color="#475569" />
             <Text className="text-slate-400 text-lg mt-4 text-center">
@@ -179,7 +185,8 @@ const MemoryVerse = () => {
             data={memories}
             renderItem={renderMemoryCard}
             keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={{ paddingVertical: 16 }}
+            style={{ backgroundColor: '#0F172A' }}
+            contentContainerStyle={{ paddingVertical: 16, paddingBottom: 100 }}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}

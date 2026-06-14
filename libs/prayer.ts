@@ -23,10 +23,22 @@ export interface UpdatePrayerData {
   is_answered?: boolean;
 }
 
+type ApiDataResponse<T> = {
+  data: T;
+};
+
+const unwrapData = <T>(response: T | ApiDataResponse<T>): T => {
+  if (response && typeof response === "object" && "data" in response) {
+    return (response as ApiDataResponse<T>).data;
+  }
+
+  return response as T;
+};
+
 export const getPrayers = async (): Promise<Prayer[]> => {
   try {
-    const response = await apiRequest<Prayer[]>("/prayers");
-    return response.data;
+    const response = await apiRequest<Prayer[] | ApiDataResponse<Prayer[]>>("/prayers");
+    return unwrapData(response);
   } catch (error) {
     throw error;
   }
@@ -34,11 +46,11 @@ export const getPrayers = async (): Promise<Prayer[]> => {
 
 export const createPrayer = async (data: CreatePrayerData): Promise<Prayer> => {
   try {
-    const response = await apiRequest<Prayer>("/prayers/store", {
+    const response = await apiRequest<Prayer | ApiDataResponse<Prayer>>("/prayers/store", {
       method: "POST",
       body: data,
     });
-    return response.data;
+    return unwrapData(response);
   } catch (error) {
     throw error;
   }
@@ -48,21 +60,17 @@ export const updatePrayer = async (
   id: number,
   data: UpdatePrayerData,
 ): Promise<Prayer> => {
-  try {
-    const response = await apiRequest<Prayer>(`/prayers/${id}/update`, {
-      method: "PUT",
-      body: data,
-    });
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await apiRequest<Prayer | ApiDataResponse<Prayer>>(`/prayers/${id}/update`, {
+    method: "PUT",
+    body: data,
+  });
+  return unwrapData(response);
 };
 
 export const showPrayer = async (id: number): Promise<Prayer> => {
   try {
-    const response = await apiRequest<Prayer>(`/prayers/${id}/show`);
-    return response.data;
+    const response = await apiRequest<Prayer | ApiDataResponse<Prayer>>(`/prayers/${id}/show`);
+    return unwrapData(response);
   } catch (error) {
     throw error;
   }

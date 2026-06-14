@@ -41,8 +41,8 @@ const onboardingData: OnboardingItem[] = [
   },
   {
     id: '3',
-    quote: 'In the beginning was the Word, and the Word was with God, and the Word was God.',
-    author: 'John 1:1',
+    quote: 'Therefore confess your sins to one another and pray for one another, that you may be healed. The prayer of a righteous person has great power as it is working.',
+    author: 'James 5:16',
     image: images.onboardingImg3,
     overlayColor: 'rgba(71, 85, 105, 0.7)',
   },

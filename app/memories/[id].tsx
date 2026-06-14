@@ -1,4 +1,4 @@
-import { detailMemory } from "@/libs/memories";
+import { detailMemory, Memory } from "@/libs/memories";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -31,7 +31,7 @@ const MemoryDetails = () => {
       setLoading(true);
       const data = await detailMemory(id as string);
       setMemory(data);
-    } catch (error) { 
+    } catch (error) {
     } finally {
       setLoading(false);
     }
@@ -48,13 +48,13 @@ const MemoryDetails = () => {
       setIsSpeaking(false);
     } else {
       if (!memory?.verse_text) return;
-      
+
       const verseText = memory.verse_text;
       const notesText = memory.notes ? stripHtml(memory.notes) : '';
-      const textToSpeak = notesText 
-        ? `${verseText}. ${notesText}` 
+      const textToSpeak = notesText
+        ? `${verseText}. ${notesText}`
         : verseText;
-      
+
       setIsSpeaking(true);
       Speech.speak(textToSpeak, {
         onDone: () => setIsSpeaking(false),
@@ -83,7 +83,8 @@ const MemoryDetails = () => {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center">
+      <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center">
+        <StatusBar style="light" />
         <ActivityIndicator size="large" color="#E94B7B" />
       </SafeAreaView>
     );
@@ -91,8 +92,9 @@ const MemoryDetails = () => {
 
   if (!memory) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center">
-        <Text className="text-gray-500">Memory not found</Text>
+      <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center">
+        <StatusBar style="light" />
+        <Text className="text-slate-400">Memory not found</Text>
       </SafeAreaView>
     );
   }
@@ -100,29 +102,29 @@ const MemoryDetails = () => {
   const verseReference = extractVerseReference(memory?.verse_text);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <StatusBar style="dark" />
-      <View className="flex-row items-center px-4 py-3 border-b border-gray-200 bg-white">
+    <SafeAreaView className="flex-1 bg-slate-900">
+      <StatusBar style="light" />
+      <View className="flex-row items-center px-4 py-3 border-b border-slate-800 bg-slate-900">
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold ml-4 text-gray-800">
+        <Text className="text-xl font-bold ml-4 text-white">
           Memory Verse
         </Text>
       </View>
 
-      <ScrollView className="flex-1">
+      <ScrollView className="flex-1 bg-slate-900">
         <View className="px-6 py-8">
           {memory.notes && (
-            <View className="mb-8 p-4 bg-white rounded-lg shadow-sm">
-              <Text className="text-lg text-gray-800 font-rubik-regular leading-relaxed">
+            <View className="mb-8 p-4 bg-slate-800 rounded-xl border border-slate-700">
+              <Text className="text-base text-slate-200 leading-relaxed">
                 {stripHtml(memory.notes)}
               </Text>
             </View>
           )}
 
           <TouchableOpacity
-            className="bg-[#E94B7B] rounded-full py-4 items-center shadow-md shadow-pink-200"
+            className="bg-[#E94B7B] rounded-full py-4 items-center"
             onPress={() => router.push("/(root)/(tabs)")}
           >
             <Text className="text-white font-semibold text-lg">
@@ -132,11 +134,11 @@ const MemoryDetails = () => {
         </View>
       </ScrollView>
 
-      <View className="bg-white border-t border-gray-200 px-4 pt-4 pb-6">
-        <Text className="text-2xl font-bold text-center text-gray-800 mb-2">
+      <View className="bg-slate-900 border-t border-slate-800 px-4 pt-4 pb-6">
+        <Text className="text-2xl font-bold text-center text-white mb-2">
           {verseReference}
         </Text>
-        <Text className="text-lg text-center text-gray-600 leading-relaxed mb-6">
+        <Text className="text-base text-center text-slate-300 leading-relaxed mb-6">
           {formatVerseText(memory?.verse_text)}
         </Text>
 
@@ -145,29 +147,29 @@ const MemoryDetails = () => {
             className="items-center"
             onPress={() => alert("Save pressed")}
           >
-            <Ionicons name="bookmark-outline" size={24} color="#555" />
-            <Text className="text-xs text-gray-600 mt-1">Save</Text>
+            <Ionicons name="bookmark-outline" size={24} color="#94A3B8" />
+            <Text className="text-xs text-slate-400 mt-1">Save</Text>
           </TouchableOpacity>
           <TouchableOpacity
             className="items-center"
             onPress={() => alert("Note pressed")}
           >
-            <Ionicons name="create-outline" size={24} color="#555" />
-            <Text className="text-xs text-gray-600 mt-1">Note</Text>
+            <Ionicons name="create-outline" size={24} color="#94A3B8" />
+            <Text className="text-xs text-slate-400 mt-1">Note</Text>
           </TouchableOpacity>
           <TouchableOpacity
             className="items-center"
             onPress={() => alert("Copy pressed")}
           >
-            <Ionicons name="copy-outline" size={24} color="#555" />
-            <Text className="text-xs text-gray-600 mt-1">Copy</Text>
+            <Ionicons name="copy-outline" size={24} color="#94A3B8" />
+            <Text className="text-xs text-slate-400 mt-1">Copy</Text>
           </TouchableOpacity>
           <TouchableOpacity className="items-center" onPress={() => onShare(memory)}>
-            <Ionicons name="share-outline" size={24} color="#555" />
-            <Text className="text-xs text-gray-600 mt-1">Share</Text>
+            <Ionicons name="share-outline" size={24} color="#94A3B8" />
+            <Text className="text-xs text-slate-400 mt-1">Share</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className="bg-[#E94B7B] rounded-full w-16 h-16 items-center justify-center shadow-lg shadow-pink-300"
+            className="bg-[#E94B7B] rounded-full w-16 h-16 items-center justify-center"
             onPress={handlePlayPause}
           >
             <Ionicons

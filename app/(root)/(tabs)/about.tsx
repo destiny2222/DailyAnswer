@@ -25,8 +25,8 @@ const AboutScreen = () => {
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
       <StatusBar style="light" />
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-700">
-        <TouchableOpacity onPress={() => router.back()} className="p-2">
+      <View className="flex-row items-center justify-between px-4 pt-12 pb-5 border-b border-gray-700">
+        <TouchableOpacity onPress={() => router.replace('/profile')} className="p-2">
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <View className="flex-1 items-center">
@@ -38,51 +38,51 @@ const AboutScreen = () => {
         </View>
         <View className="w-10" />
       </View>
-      <ScrollView contentContainerStyle={{ padding: 24 }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
         <View className="items-center mb-10">
           <Text className="text-2xl font-extrabold text-white tracking-wider font-rubik-extrabold">
             ABOUT THE PUBLISHER
           </Text>
         </View>
 
-        <AboutSection title="Our Mission">
-          At Urgent Message Production Ministry, our mission is to inspire,
-          uplift, and enrich your spiritual journey by providing daily
-          devotional content that connects you with God's Word. We are
-          committed to offering insightful, thought-provoking reflections that
-          help you to grow in faith and apply Biblical truths to everyday life.
-        </AboutSection>
-
         <AboutSection title="Our History">
-          Founded in 2010 by Pastor Mabel Tabu, The Daily Answer devotional
-          was written by a small community of faith-driven individuals. Over
-          the years, The Daily Answer devotional has become a trusted resource
-          for thousands of believers worldwide, dedicated to spreading the love
-          and teachings of Jesus Christ.
+          Founded in 2010 by Pastor Mabel Talabi, The Daily Answer devotional
+          is written by a small community of faith-driven individuals. Over the
+          years, The Daily Answer devotional has become a trusted resource for
+          thousands of believers worldwide dedicated to spreading the love,
+          salvation and teachings of Jesus Christ.
         </AboutSection>
 
-        <AboutSection title="Our Team">
-          Our content is created by a diverse team of theologians, pastors, and
-          writers who are deeply rooted in scriptural knowledge and passionate
-          about evangelism. Each devotional is crafted with care, prayer, and
-          deep contemplation to ensure that it speaks to your heart and meets
-          you where you are in your faith journey.
+        <AboutSection title="Our Mission">
+          To inspire, uplift and enrich the readers&apos; spiritual journey by
+          providing daily devotional content that connects them with God&apos;s word.
+          We are committed to offering insightful and thought-provoking
+          reflections that will help readers to grow in their faith and apply
+          biblical truth to everyday life.
         </AboutSection>
 
         <AboutSection title="Our Vision">
           We envision a world where every believer has the tools to deepen
           their relationship with Christ every day. Our app serves as a
-          personal companion in your daily walk with God, providing
-          accessible, engaging, and spiritually enriching content that
-          encourages and challenges you to live a life of purpose and faith.
+          personal companion in their daily walk with God, providing accessible,
+          engaging, and spiritually enriching content that encourages and
+          challenges them to live a life of purpose and faith.
+        </AboutSection>
+
+        <AboutSection title="Our Team">
+          Our content is created by a diverse team of theologians, pastors,
+          writers and editors who are deeply rooted in scriptural knowledge and
+          passionate about evangelism. Each devotional is crafted with care,
+          prayer and deep contemplation to ensure that it speaks to readers&apos;
+          hearts and meets them where they are in their faith journey.
         </AboutSection>
 
         <AboutSection title="Our Commitment">
           We are committed to maintaining the highest integrity in our work and
-          to ensuring that our app is a safe, respectful, and inclusive space
-          for all believers. We continuously strive to improve and update our
-          app based on user feedback and theological insights to better serve
-          our global community.
+          ensuring that our app is a safe, respectful and inclusive space for
+          all believers. We continuously strive to improve and update our app
+          based on user feedback and theological insights to better serve our
+          global community.
         </AboutSection>
       </ScrollView>
     </SafeAreaView>

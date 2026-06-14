@@ -4,10 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const changedPassword = () => {
+const ChangedPassword = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -112,7 +112,7 @@ const changedPassword = () => {
         
         // Navigate back after a short delay
         setTimeout(() => {
-          router.back();
+          router.replace('/profile');
         }, 2000);
       } else {
         setAlertInfo({
@@ -156,11 +156,15 @@ const changedPassword = () => {
   return (
     <SafeAreaView className="flex-1 bg-gray-900">
       <StatusBar style="light" />
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
         {/* Header */}
         <View className="bg-gray-900 px-6 py-4 border-b border-gray-700">
           <View className="flex-row items-center mb-2">
-            <TouchableOpacity onPress={() => router.back()} className="mr-4">
+            <TouchableOpacity onPress={() => router.replace('/profile')} className="mr-4">
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
             <Text className="text-2xl font-rubik-semibold text-white">
@@ -328,7 +332,7 @@ const changedPassword = () => {
 
           {/* Cancel Button */}
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => router.replace('/profile')}
             disabled={loading}
             className="bg-gray-700 rounded-xl py-4 items-center justify-center mt-3"
           >
@@ -338,6 +342,7 @@ const changedPassword = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <CustomAlert
         visible={alertInfo.visible}
@@ -350,4 +355,4 @@ const changedPassword = () => {
   );
 };
 
-export default changedPassword
+export default ChangedPassword
