@@ -218,9 +218,9 @@ const Login = () => {
   };
 
   return (
-    <View className="flex-1 bg-slate-900 pt-7">
+    <View className="flex-1 bg-slate-900 pt-24 justify-center">
       <StatusBar style="light" animated={true}/>
-      <View className="flex-row items-center px-4 py-4 border-b border-slate-800">
+      <View className="flex-row items-center px-4 py-4  border-slate-800">
         <TouchableOpacity
           onPress={() => router.back()}
           className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
@@ -228,9 +228,9 @@ const Login = () => {
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text className="flex-1 text-center text-xl font-bold text-white">
+        {/* <Text className="flex-1 text-center text-xl font-bold text-white">
           Sign In
-        </Text>
+        </Text> */}
         <View className="w-11" />
       </View>
 

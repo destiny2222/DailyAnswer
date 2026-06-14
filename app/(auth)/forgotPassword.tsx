@@ -159,7 +159,14 @@ const ForgotPassword = () => {
   };
 
   return (
-    <View className="flex-1 bg-slate-900 pt-7">
+    <View className="flex-1 bg-slate-900 pt-24">
+      <TouchableOpacity
+        onPress={() => router.back()}
+        className="absolute top-32 left-6 z-10 p-2"
+        activeOpacity={0.7}
+      >
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+      </TouchableOpacity>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
