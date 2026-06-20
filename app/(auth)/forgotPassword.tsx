@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import * as Clipboard from "expo-clipboard";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Text,
@@ -15,6 +14,7 @@ import {
 import CustomAlert from "../../components/CustomAlert";
 import { apiRequest } from "../../utils/api";
 import RecaptchaWidget from "../../components/RecaptchaWidget";
+import { useOtpAutoFill } from "../../utils/useOtpAutoFill";
 
 const ForgotPassword = () => {
   const router = useRouter();
@@ -34,13 +34,7 @@ const ForgotPassword = () => {
   });
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (step !== "otp") return;
-    Clipboard.getStringAsync().then((text) => {
-      const code = text?.trim().match(/^\d{6}$/);
-      if (code) setOtp(code[0]);
-    });
-  }, [step]);
+  useOtpAutoFill(step === "otp", setOtp);
 
   const handleSendOtp = async () => {
     if (!email) {
@@ -250,7 +244,10 @@ const ForgotPassword = () => {
                       placeholder="Enter the OTP code"
                       placeholderTextColor="#9CA3AF"
                       keyboardType="number-pad"
-                      autoCapitalize="none"
+                      maxLength={6}
+                      textContentType="oneTimeCode"
+                      autoComplete="one-time-code"
+                      autoFocus={true}
                       className="flex-1 ml-3 text-white text-base"
                     />
                   </View>

@@ -2,8 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Link, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
-import * as Clipboard from "expo-clipboard";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -18,6 +17,7 @@ import CustomAlert from "../../components/CustomAlert";
 import { ApiError, apiRequest } from "../../utils/api";
 import RecaptchaWidget from "../../components/RecaptchaWidget";
 import { useGlobalContext } from "../../utils/auth";
+import { useOtpAutoFill } from "../../utils/useOtpAutoFill";
 
 interface RegisterResponse {
   success: boolean;
@@ -54,13 +54,7 @@ const SignUp = () => {
   const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
 
-  useEffect(() => {
-    if (step !== "otp") return;
-    Clipboard.getStringAsync().then((text) => {
-      const code = text?.trim().match(/^\d{6}$/);
-      if (code) setOtp(code[0]);
-    });
-  }, [step]);
+  useOtpAutoFill(step === "otp", setOtp);
 
   const handleSignUp = async () => {
     
@@ -451,6 +445,9 @@ const SignUp = () => {
                       placeholderTextColor="#4B5563"
                       keyboardType="number-pad"
                       maxLength={6}
+                      textContentType="oneTimeCode"
+                      autoComplete="one-time-code"
+                      autoFocus={true}
                       className="ml-4 text-white text-3xl font-bold tracking-[10px] flex-1 text-center"
                       secureTextEntry={true}
                     />
