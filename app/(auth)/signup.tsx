@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
 import { ApiError, apiRequest } from "../../utils/api";
-import RecaptchaWidget from "../../components/RecaptchaWidget";
+import TurnstileWidget from "../../components/TurnstileWidget";
 import { useGlobalContext } from "../../utils/auth";
 import { useOtpAutoFill } from "../../utils/useOtpAutoFill";
 
@@ -111,7 +111,7 @@ const SignUp = () => {
           password,
           password_confirmation: confirmPassword,
           referral_code: referralCode,
-          "g-recaptcha-response": recaptchaToken,
+          "cf-turnstile-response": recaptchaToken,
         },
         auth: false,
       });
@@ -411,8 +411,7 @@ const SignUp = () => {
                   </View>
                 </View>
 
-                {/* Turnstile Widget */}
-                <RecaptchaWidget onVerify={setRecaptchaToken} />
+                <TurnstileWidget onVerify={setRecaptchaToken} />
 
                 {/* Sign Up Button */}
                 <TouchableOpacity

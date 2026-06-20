@@ -16,7 +16,7 @@ import {
 import CustomAlert from "../../components/CustomAlert";
 import { ApiError, apiRequest } from "../../utils/api";
 import { useGlobalContext } from "../../utils/auth";
-import RecaptchaWidget from "../../components/RecaptchaWidget";
+import TurnstileWidget from "../../components/TurnstileWidget";
 import { useOtpAutoFill } from "../../utils/useOtpAutoFill";
 
 interface LoginResponse {
@@ -80,7 +80,7 @@ const Login = () => {
         body: {
           email,
           password,
-          "g-recaptcha-response": recaptchaToken,
+          "cf-turnstile-response": recaptchaToken,
         },
         auth: false,
       });
@@ -322,8 +322,7 @@ const Login = () => {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Turnstile Widget */}
-                <RecaptchaWidget onVerify={setRecaptchaToken} />
+                <TurnstileWidget onVerify={setRecaptchaToken} />
 
                 {/* Login Button */}
                 <TouchableOpacity

@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
 import { apiRequest } from "../../utils/api";
-import RecaptchaWidget from "../../components/RecaptchaWidget";
+import TurnstileWidget from "../../components/TurnstileWidget";
 import { useOtpAutoFill } from "../../utils/useOtpAutoFill";
 
 const ForgotPassword = () => {
@@ -64,7 +64,7 @@ const ForgotPassword = () => {
           method: "POST",
           body: { 
             email,
-            "g-recaptcha-response": recaptchaToken,
+            "cf-turnstile-response": recaptchaToken,
           },
           auth: false,
         }
@@ -214,8 +214,7 @@ const ForgotPassword = () => {
                   </View>
                 </View>
 
-                {/* Turnstile Widget */}
-                <RecaptchaWidget onVerify={setRecaptchaToken} />
+                <TurnstileWidget onVerify={setRecaptchaToken} />
 
                 <TouchableOpacity
                   onPress={handleSendOtp}
