@@ -39,6 +39,7 @@ const SignUp = () => {
   const [email, setEmail] = useState(""); // Restored
   const [password, setPassword] = useState(""); // Restored
   const [confirmPassword, setConfirmPassword] = useState(""); // Restored
+  const [phone, setPhone] = useState("");
   const [referralCode, setReferralCode] = useState(""); // New field
   const [showPassword, setShowPassword] = useState(false); // Restored
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -59,7 +60,7 @@ const SignUp = () => {
   const handleSignUp = async () => {
     
 
-    if (!fullName  || !email || !password || !confirmPassword) {
+    if (!fullName || !email || !phone || !password || !confirmPassword) {
       setAlertConfig({
         title: "Validation Error",
         message: "Please fill in all fields",
@@ -107,6 +108,7 @@ const SignUp = () => {
         body: {
           name: fullName,
           email,
+          phone,
           username,
           password,
           password_confirmation: confirmPassword,
@@ -318,6 +320,26 @@ const SignUp = () => {
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoComplete="email"
+                      className="flex-1 ml-3 text-white text-base"
+                    />
+                  </View>
+                </View>
+
+                {/* Phone Input */}
+                <View className="mb-4">
+                  <Text className="text-white/80 text-sm font-semibold mb-2">
+                    Phone Number
+                  </Text>
+                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
+                    <Ionicons name="call-outline" size={20} color="#9CA3AF" />
+                    <TextInput
+                      value={phone}
+                      onChangeText={setPhone}
+                      placeholder="+1234567890"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="phone-pad"
+                      autoComplete="tel"
+                      textContentType="telephoneNumber"
                       className="flex-1 ml-3 text-white text-base"
                     />
                   </View>

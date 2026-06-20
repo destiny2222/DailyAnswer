@@ -231,7 +231,7 @@ const Login = () => {
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        {/* <Text className="flex-1 text-center text-xl font-bold text-white">
+        {/* 0x4AAAAAADn6VZck3a4x12YW <Text className="flex-1 text-center text-xl font-bold text-white">
           Sign In
         </Text> */}
         <View className="w-11" />
