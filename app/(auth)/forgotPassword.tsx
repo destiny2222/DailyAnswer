@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import * as Clipboard from "expo-clipboard";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Text,
@@ -32,6 +33,14 @@ const ForgotPassword = () => {
     type: "success" as "success" | "error",
   });
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (step !== "otp") return;
+    Clipboard.getStringAsync().then((text) => {
+      const code = text?.trim().match(/^\d{6}$/);
+      if (code) setOtp(code[0]);
+    });
+  }, [step]);
 
   const handleSendOtp = async () => {
     if (!email) {

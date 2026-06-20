@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Link, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import * as Clipboard from "expo-clipboard";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -52,6 +53,14 @@ const SignUp = () => {
   const [step, setStep] = useState<"form" | "otp">("form");
   const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
+
+  useEffect(() => {
+    if (step !== "otp") return;
+    Clipboard.getStringAsync().then((text) => {
+      const code = text?.trim().match(/^\d{6}$/);
+      if (code) setOtp(code[0]);
+    });
+  }, [step]);
 
   const handleSignUp = async () => {
     
@@ -244,20 +253,6 @@ const SignUp = () => {
   return (
     <View className="flex-1 bg-slate-900 align-center justify-center">
       <StatusBar style="light" />
-      <View className="flex-row items-center px-4 py-4 border-b border-slate-800">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
-          activeOpacity={0.8}
-        >
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text className="flex-1 text-center text-xl font-bold text-white">
-          Create Account
-        </Text>
-        <View className="w-11" />
-      </View>
-
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
@@ -268,7 +263,16 @@ const SignUp = () => {
           showsVerticalScrollIndicator={false}
         >
           {/* Header Section */}
-          <View className="px-6 pt-10 pb-6">
+          <View className="px-6 pt-24 pb-6">
+            <View className="relative">
+              <TouchableOpacity
+                onPress={() => router.back()}
+                className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center absolute"
+                activeOpacity={0.8}
+              >
+                <Ionicons name="arrow-back" size={24} color="white" />
+              </TouchableOpacity> 
+            </View>
             <View className="items-center mb-6">
               {/* <View className="w-20 h-20 rounded-full bg-[#E94B7B]/20 items-center justify-center mb-4">
                 <Ionicons name="flower" size={48} color="#FB923C" />
@@ -448,6 +452,7 @@ const SignUp = () => {
                       keyboardType="number-pad"
                       maxLength={6}
                       className="ml-4 text-white text-3xl font-bold tracking-[10px] flex-1 text-center"
+                      secureTextEntry={true}
                     />
                   </View>
                 </View>

@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Link, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import * as Clipboard from "expo-clipboard";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -47,6 +48,14 @@ const Login = () => {
   const [step, setStep] = useState<"form" | "otp">("form");
   const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
+
+  useEffect(() => {
+    if (step !== "otp") return;
+    Clipboard.getStringAsync().then((text) => {
+      const code = text?.trim().match(/^\d{6}$/);
+      if (code) setOtp(code[0]);
+    });
+  }, [step]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -352,6 +361,7 @@ const Login = () => {
                       keyboardType="number-pad"
                       maxLength={6}
                       className="ml-4 text-white text-3xl font-bold tracking-[10px] flex-1 text-center"
+                      secureTextEntry={true}
                       textContentType="oneTimeCode"
                       autoComplete="one-time-code"
                       autoFocus={true}

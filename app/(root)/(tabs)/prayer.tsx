@@ -406,13 +406,13 @@ const PrayerScreen = () => {
         />
       )}
 
-      <TouchableOpacity
+      {/* <TouchableOpacity
         className="absolute bottom-40 right-6 h-16 w-16 items-center justify-center rounded-full bg-[#E94B7B] shadow-lg"
         onPress={openAddModal}
         activeOpacity={0.85}
       >
         <Ionicons name="add" size={32} color="white" />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       {/* Add/Edit Prayer Modal */}
       <Modal

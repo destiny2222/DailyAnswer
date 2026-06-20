@@ -435,7 +435,7 @@ const DevotionalDetail = () => {
               <View className="flex-row items-center mb-2">
                 <Ionicons name="bookmark" size={18} color="#E94B7B" />
                 <Text className="text-sm font-bold text-[#E94B7B] ml-2">
-                  Scripture References
+                  Scripture Reference
                 </Text>
               </View>
               <Text className="text-gray-800 text-base leading-7 italic font-rubik-semibold font-semibold">
@@ -480,7 +480,7 @@ const DevotionalDetail = () => {
               <View className="flex-row items-center mb-2">
                 <Ionicons name="book-outline" size={18} color="#3B82F6" />
                 <Text className="text-sm font-bold text-blue-700 ml-2">
-                  Memory Verses
+                  Memory Verse
                 </Text>
               </View>
               <Text className="text-gray-700 text-base font-rubik-semibold font-semibold">
