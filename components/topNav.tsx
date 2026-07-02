@@ -13,9 +13,11 @@ const TopNav = ({ title }: TopHeaderProps) => {
 
   return (
     <View className="flex-row items-center px-4 py-5 border-b bg-gray-900 border-gray-800">
-      <TouchableOpacity onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color="#fff" />
-      </TouchableOpacity>
+      {router.canGoBack() && (
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
       <Text className="text-xl font-bold ml-4 text-gray-100">
         {title}
       </Text>

@@ -261,13 +261,21 @@ const SignUp = () => {
           {/* Header Section */}
           <View className="px-6 pt-24 pb-6">
             <View className="relative">
-              <TouchableOpacity
-                onPress={() => router.back()}
-                className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center absolute"
-                activeOpacity={0.8}
-              >
-                <Ionicons name="arrow-back" size={24} color="white" />
-              </TouchableOpacity> 
+              {(step === "otp" || router.canGoBack()) && (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (step === "otp") {
+                      setStep("form");
+                    } else {
+                      router.back();
+                    }
+                  }}
+                  className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center absolute"
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="arrow-back" size={24} color="white" />
+                </TouchableOpacity> 
+              )}
             </View>
             <View className="items-center mb-6">
               {/* <View className="w-20 h-20 rounded-full bg-[#E94B7B]/20 items-center justify-center mb-4">

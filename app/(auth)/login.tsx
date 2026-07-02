@@ -224,13 +224,23 @@ const Login = () => {
     <View className="flex-1 bg-slate-900 pt-24 justify-center">
       <StatusBar style="light" animated={true}/>
       <View className="flex-row items-center px-4 py-4  border-slate-800">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
-          activeOpacity={0.8}
-        >
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
+        {(step === "otp" || router.canGoBack()) ? (
+          <TouchableOpacity
+            onPress={() => {
+              if (step === "otp") {
+                setStep("form");
+              } else {
+                router.back();
+              }
+            }}
+            className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+        ) : (
+          <View className="w-11" />
+        )}
         {/* 0x4AAAAAADn6VZck3a4x12YW <Text className="flex-1 text-center text-xl font-bold text-white">
           Sign In
         </Text> */}
