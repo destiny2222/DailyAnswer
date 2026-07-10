@@ -1,4 +1,5 @@
 import { detailMemory, Memory } from "@/libs/memories";
+import { createNote } from "@/libs/note";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -8,12 +9,20 @@ import {
   Share,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as SecureStore from 'expo-secure-store';
+import * as Clipboard from 'expo-clipboard';
 
 import * as Speech from "expo-speech";
 import { StatusBar } from "expo-status-bar";
+import CustomAlert from "@/components/CustomAlert";
 
 const MemoryDetails = () => {
   const { id } = useLocalSearchParams();
@@ -21,10 +30,91 @@ const MemoryDetails = () => {
   const [memory, setMemory] = useState<Memory | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [userNote, setUserNote] = useState("");
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: 'success' as 'success' | 'error' });
 
   useEffect(() => {
     loadMemory();
   }, [id]);
+
+  useEffect(() => {
+    if (memory) {
+      checkSavedStatus();
+      loadUserNote();
+    }
+  }, [memory]);
+
+  const checkSavedStatus = async () => {
+    try {
+      const saved = await SecureStore.getItemAsync(`saved_memory_${id}`);
+      setIsSaved(saved === 'true');
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const toggleSave = async () => {
+    try {
+      const newValue = !isSaved;
+      setIsSaved(newValue);
+      await SecureStore.setItemAsync(`saved_memory_${id}`, newValue ? 'true' : 'false');
+      setAlertConfig({
+        title: newValue ? "Saved" : "Removed",
+        message: newValue ? "Memory has been saved." : "Memory removed from saved items.",
+        type: newValue ? "success" : "error"
+      });
+      setAlertVisible(true);
+    } catch (e) {
+      setAlertConfig({ title: "Error", message: "Could not save memory status.", type: "error" });
+      setAlertVisible(true);
+    }
+  };
+
+  const loadUserNote = async () => {
+    try {
+      const note = await SecureStore.getItemAsync(`note_memory_${id}`);
+      if (note) setUserNote(note);
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const saveUserNote = async () => {
+    try {
+      // Save locally to show when visiting this verse
+      await SecureStore.setItemAsync(`note_memory_${id}`, userNote);
+      
+      // Sync to General Notes page
+      if (memory) {
+        try {
+          await createNote({
+            title: `Memory Verse: ${formatVerseText(memory.verse_text)}`,
+            content: userNote
+          });
+        } catch (apiError) {
+          console.warn("Could not sync note to backend", apiError);
+        }
+      }
+
+      setShowNoteModal(false);
+      setAlertConfig({ title: "Saved", message: "Your note has been saved and added to your Notes tab.", type: "success" });
+      setAlertVisible(true);
+    } catch (e) {
+      setAlertConfig({ title: "Error", message: "Could not save your note.", type: "error" });
+      setAlertVisible(true);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (memory?.verse_text) {
+      await Clipboard.setStringAsync(memory.verse_text);
+      setAlertConfig({ title: "Copied", message: "Verse copied to clipboard.", type: "success" });
+      setAlertVisible(true);
+    }
+  };
 
   const loadMemory = async () => {
     try {
@@ -145,21 +235,21 @@ const MemoryDetails = () => {
         <View className="flex-row justify-around items-center">
           <TouchableOpacity
             className="items-center"
-            onPress={() => alert("Save pressed")}
+            onPress={toggleSave}
           >
-            <Ionicons name="bookmark-outline" size={24} color="#94A3B8" />
-            <Text className="text-xs text-slate-400 mt-1">Save</Text>
+            <Ionicons name={isSaved ? "bookmark" : "bookmark-outline"} size={24} color={isSaved ? "#E94B7B" : "#94A3B8"} />
+            <Text className="text-xs text-slate-400 mt-1">{isSaved ? "Saved" : "Save"}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             className="items-center"
-            onPress={() => alert("Note pressed")}
+            onPress={() => setShowNoteModal(true)}
           >
             <Ionicons name="create-outline" size={24} color="#94A3B8" />
             <Text className="text-xs text-slate-400 mt-1">Note</Text>
           </TouchableOpacity>
           <TouchableOpacity
             className="items-center"
-            onPress={() => alert("Copy pressed")}
+            onPress={handleCopy}
           >
             <Ionicons name="copy-outline" size={24} color="#94A3B8" />
             <Text className="text-xs text-slate-400 mt-1">Copy</Text>
@@ -180,6 +270,50 @@ const MemoryDetails = () => {
           </TouchableOpacity>
         </View>
       </View>
+
+      <Modal
+        visible={showNoteModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowNoteModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1 justify-end bg-black/50"
+        >
+          <View className="bg-slate-800 p-6 rounded-t-3xl border-t border-slate-700">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-lg font-bold text-white">Add a Note</Text>
+              <TouchableOpacity onPress={() => setShowNoteModal(false)}>
+                <Ionicons name="close" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              className="bg-slate-900 text-white p-4 rounded-xl h-32 mb-4 border border-slate-700"
+              multiline
+              textAlignVertical="top"
+              placeholder="Write your thoughts here..."
+              placeholderTextColor="#64748B"
+              value={userNote}
+              onChangeText={setUserNote}
+            />
+            <TouchableOpacity
+              className="bg-[#E94B7B] rounded-full py-4 items-center"
+              onPress={saveUserNote}
+            >
+              <Text className="text-white font-semibold text-lg">Save Note</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <CustomAlert 
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onClose={() => setAlertVisible(false)}
+      />
     </SafeAreaView>
   );
 };

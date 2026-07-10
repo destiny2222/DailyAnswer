@@ -1,4 +1,11 @@
-import book from "@/assets/images/devotion.jpg";
+import devo1 from "@/assets/images/devo/1.jpg";
+import devo2 from "@/assets/images/devo/2.jpg";
+import devo3 from "@/assets/images/devo/3.jpg";
+import devo4 from "@/assets/images/devo/4.jpg";
+import devo5 from "@/assets/images/devo/5.jpg";
+import devo6 from "@/assets/images/devo/6.jpg";
+import devo7 from "@/assets/images/devo/7.jpg";
+
 import images from "@/constants/images";
 import AuthGuardModal from '@/components/AuthGuardModal';
 import SubscriptionModal from '@/components/SubscriptionModal';
@@ -12,7 +19,14 @@ import { ActivityIndicator, FlatList, Image, Keyboard, RefreshControl, Text, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Devotional, fetchDevotionals, fetchTodaysDevotional } from "../../../libs/devotional";
 import { canAccessPremiumContent } from '../../../utils/auth';
-import { formatDateShort } from "../../../utils/date";
+import { formatDateShort, safeParseDate } from "../../../utils/date";
+
+const getFallbackImage = (dateInput?: string | Date) => {
+  const date = safeParseDate(dateInput);
+  const day = date.getDay();
+  const fallbackImages = [devo1, devo2, devo3, devo4, devo5, devo6, devo7];
+  return fallbackImages[day] || fallbackImages[0];
+};
 
 type DevotionItem = {
   id: number | string;
@@ -65,7 +79,7 @@ export function DevotionCard({ item, index, onPress }: DevotionCardProps) {
       activeOpacity={0.8}
     >
       <Image
-        source={item.image ? { uri: item.image } : book}
+        source={getFallbackImage(item.date)}
         className="w-full h-48 bg-white"
         resizeMode="contain"
       />
@@ -197,7 +211,7 @@ export default function ResourcesScreen() {
         <FlatList
           className="flex-1"
           data={filteredDevotionals}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={(item, index) => String(item.id) + '-' + index}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 16 }}
           refreshControl={
@@ -270,7 +284,7 @@ export default function ResourcesScreen() {
                       activeOpacity={0.8}
                     >
                       <Image
-                        source={todaysDevotional.image ? { uri: todaysDevotional.image } : book}
+                        source={getFallbackImage(todaysDevotional.date)}
                         className="w-full h-64 rounded-2xl bg-white"
                         resizeMode="contain"
                       /> 
