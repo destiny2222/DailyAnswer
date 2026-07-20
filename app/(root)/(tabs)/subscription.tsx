@@ -1,9 +1,7 @@
 import logoImage from "@/assets/images/logo.jpeg";
 import CustomAlert from "@/components/CustomAlert";
-import { confirmPayment, createSubscription, getSubscriptionPlans, Plan } from "@/libs/payment";
 import { useGlobalContext } from "@/utils/auth";
 import { Ionicons } from "@expo/vector-icons";
-import { useStripe } from "@stripe/stripe-react-native";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
@@ -14,38 +12,95 @@ import {
   ScrollView,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Platform
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as IAP from "expo-iap";
+import { initIAPConnection, fetchSubscriptions, requestPurchase, verifyReceiptWithBackend } from "@/libs/iap";
 
 const Subscription = () => {
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { setHasPaid } = useGlobalContext();
-  const [plans, setPlans] = useState<Plan[]>([]);
+  const [plans, setPlans] = useState<IAP.Subscription[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubscribing, setIsSubscribing] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [alertVisible, setAlertVisible] = useState(false);
-    const [alertConfig, setAlertConfig] = useState({
-      title: "",
-      message: "",
-      type: "success" as "success" | "error",
-    });
+  const [alertConfig, setAlertConfig] = useState({
+    title: "",
+    message: "",
+    type: "success" as "success" | "error",
+  });
 
   useEffect(() => {
-    const fetchPlans = async () => {
+    let purchaseUpdateSubscription: any = null;
+    let purchaseErrorSubscription: any = null;
+
+    const setupIAP = async () => {
       try {
         setLoading(true);
-        const availablePlans = await getSubscriptionPlans();
+        await initIAPConnection();
+        const availablePlans = await fetchSubscriptions();
         
         setPlans(availablePlans);
         if (availablePlans.length > 0) {
-          // default to plan_standard_quarterly
-          const defaultPlan = availablePlans.find(p => p.plan_id === 'plan_standard_quarterly') || availablePlans[0];
-          setSelectedPlan(defaultPlan.id);
+          setSelectedPlan(availablePlans[0].productId);
         }
+
+        // Set up listeners for purchases
+        purchaseUpdateSubscription = IAP.purchaseUpdatedListener(async (purchase: IAP.ProductPurchase | IAP.SubscriptionPurchase) => {
+          const receipt = purchase.transactionReceipt;
+          
+          if (receipt) {
+            try {
+              // Send receipt to your Laravel backend for validation
+              const verification = await verifyReceiptWithBackend(receipt, purchase.productId);
+
+              if (verification.success) {
+                // Tell Apple/Google we've successfully delivered the content
+                await IAP.finishTransaction({ purchase, isConsumable: false });
+                
+                setHasPaid(true);
+                setIsSubscribing(false);
+
+                setAlertConfig({
+                  title: "Payment Successful! 🎉",
+                  message: "Your subscription is now active. Enjoy full access to all premium features!",
+                  type: "success",
+                });
+                setAlertVisible(true);
+                
+                setTimeout(() => {
+                  router.replace('/(root)/(tabs)');
+                }, 2000);
+              } else {
+                throw new Error(verification.message || "Could not verify subscription.");
+              }
+            } catch (err: any) {
+              setIsSubscribing(false);
+              setAlertConfig({
+                title: "Verification Error",
+                message: err.message || "Failed to verify receipt with server.",
+                type: "error",
+              });
+              setAlertVisible(true);
+            }
+          }
+        });
+
+        purchaseErrorSubscription = IAP.purchaseErrorListener((error: IAP.PurchaseError) => {
+          setIsSubscribing(false);
+          // Don't show an error if the user just cancelled the dialog
+          if (error.code !== "E_USER_CANCELLED") {
+            setAlertConfig({
+              title: "Purchase Error",
+              message: error.message,
+              type: "error",
+            });
+            setAlertVisible(true);
+          }
+        });
+
       } catch (e) {
         setAlertConfig({
           title: "Error",
@@ -57,7 +112,18 @@ const Subscription = () => {
         setLoading(false);
       }
     };
-    fetchPlans();
+
+    setupIAP();
+
+    return () => {
+      if (purchaseUpdateSubscription) {
+        purchaseUpdateSubscription.remove();
+      }
+      if (purchaseErrorSubscription) {
+        purchaseErrorSubscription.remove();
+      }
+      IAP.endConnection();
+    };
   }, []);
 
   const handleSelectPlan = (planId: string) => {
@@ -72,99 +138,22 @@ const Subscription = () => {
         type: "error",
       });
       setAlertVisible(true);
-      //
       return;
     }
 
     setIsSubscribing(true);
     try {
-      const { clientSecret, customerId } = await createSubscription(selectedPlan);
-      
-      const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: "The Daily Answer",
-        customerId: customerId,
-        paymentIntentClientSecret: clientSecret,
-        allowsDelayedPaymentMethods: false,
-      });
-      
-      if (initError) {
-        setAlertConfig({
-          title: "Error",
-          message: "Failed to initialize payment sheet.",
-          type: "error",
-        });
-        setAlertVisible(true);
-        setIsSubscribing(false);
-        return;
-      }
-
-      const { error: presentError } = await presentPaymentSheet();
-      if (presentError) {
-        // logger.error("Present Error:", presentError);
-        if (presentError.code !== 'Canceled') {
-          setAlertConfig({
-            title: "Payment Error",
-            message: presentError.message,
-            type: "error",
-          });
-          setAlertVisible(true);
-        }
-      } else {
-        // Extract paymentIntentId from clientSecret
-        const paymentIntentId = clientSecret.split('_secret')[0];
-        
-        // Confirm payment on the backend
-        const confirmation = await confirmPayment(paymentIntentId);
-
-        if (confirmation.success) {
-          setHasPaid(true);
-          
-          // Show success alert
-          setAlertConfig({
-            title: "Payment Successful! 🎉",
-            message: "Your subscription is now active. Enjoy full access to all premium features!",
-            type: "success",
-          });
-          setAlertVisible(true);
-          // Redirect after a brief delay to allow user to see the success message
-          setTimeout(() => {
-            router.replace('/(root)/(tabs)');
-          }, 2000);
-        } else {
-          setAlertConfig({
-            title: "Confirmation Failed",
-            message: confirmation.message || "Could not activate your subscription.",
-            type: "error",
-          });
-          setAlertVisible(true);
-        }
-      }
+      await requestPurchase(selectedPlan);
     } catch (e: any) {
-      // logger.error("Subscription error:", e);
+      setIsSubscribing(false);
       setAlertConfig({
         title: "Subscription Error",
         message: e.message || "An unexpected error occurred.",
         type: "error",
       });
       setAlertVisible(true);
-    } finally {
-      setIsSubscribing(false);
     }
   };
-
-  // const handleRestorePurchases = async () => {
-  //   setIsRestoring(true);
-  //   setError(null);
-  //   // Simulate API call
-  //   await new Promise((resolve) => setTimeout(resolve, 2000));
-  //   setAlertConfig({
-  //     title: "Restoration Complete",
-  //     message: "Your purchases have been restored successfully.",
-  //     type: "error"
-  //   });
-  //   setAlertVisible(true);
-  //   setIsRestoring(false);
-  // };
 
   const features = [
     "Support quality writing",
@@ -222,32 +211,33 @@ const Subscription = () => {
           <View className="w-full mb-6">
             {plans.map((plan) => (
               <TouchableOpacity
-                key={plan.id}
-                onPress={() => handleSelectPlan(plan.id)}
+                key={plan.productId}
+                onPress={() => handleSelectPlan(plan.productId)}
                 className={`border-2 rounded-xl p-4 mb-4 ${
-                  selectedPlan === plan.id
+                  selectedPlan === plan.productId
                     ? "border-pink-500 bg-pink-500/10"
                     : "border-slate-700"
                 }`}
               >
                 <View className="flex-row justify-between items-center">
-                  <Text className="text-white text-lg font-semibold">{plan.name}</Text>
-                  <Text className="text-white text-lg font-bold">${plan.price.toFixed(2)}</Text>
+                  <Text className="text-white text-lg font-semibold">{plan.title || plan.name}</Text>
+                  <Text className="text-white text-lg font-bold">{plan.localizedPrice}</Text>
                 </View>
-                {plan.id === 'yearly_60' && (
-                  <Text className="text-pink-500 text-sm font-semibold mt-1">
-                    Save 25%
-                  </Text>
+                {plan.description && (
+                  <Text className="text-slate-400 text-sm mt-1">{plan.description}</Text>
                 )}
               </TouchableOpacity>
             ))}
+            {plans.length === 0 && (
+              <Text className="text-slate-400 text-center">No subscription plans available.</Text>
+            )}
           </View>
 
           {/* Subscribe Button */}
           <TouchableOpacity
             onPress={handleSubscribe}
-            disabled={isSubscribing || loading}
-            className="bg-pink-600 w-full py-4 rounded-xl items-center justify-center mb-6"
+            disabled={isSubscribing || loading || plans.length === 0}
+            className="bg-pink-600 w-full py-4 rounded-xl items-center justify-center mb-6 opacity-90 disabled:opacity-50"
           >
             {isSubscribing ? (
               <ActivityIndicator color="#fff" />
@@ -257,32 +247,6 @@ const Subscription = () => {
               </Text>
             )}
           </TouchableOpacity>
-
-          {/* Restore Purchases */}
-          {/* <View className="w-full bg-slate-800 rounded-xl p-4 items-center mb-6">
-            <TouchableOpacity
-              onPress={handleRestorePurchases}
-              disabled={isRestoring}
-            >
-              <Text className="text-pink-500 text-base font-semibold">
-                Restore Purchases
-              </Text>
-            </TouchableOpacity>
-            {isRestoring && (
-              <ActivityIndicator color="#E94B7B" style={{ marginTop: 12 }} />
-            )}
-            {error && (
-              <View className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 mt-4 w-full">
-                <Text className="text-red-400 text-center">{error}</Text>
-                <TouchableOpacity
-                  onPress={handleRestorePurchases}
-                  className="bg-red-500/20 rounded-md py-2 mt-3"
-                >
-                  <Text className="text-white text-center font-semibold">Retry</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View> */}
 
           {/* Legal */}
           <View className="items-center mb-6">
@@ -295,8 +259,6 @@ const Subscription = () => {
           </View>
 
           <Text className="text-slate-500 text-xs text-center">
-            By clicking "Subscribe", you agree to our Membership Terms of Service. Your payment method will, based on your selection, be charged on a recurring basis $9.99 per quarter, $39.96 yearly (prices are subject to change).
-            {"\n\n"}
             Your Daily Answer membership will be billed in your local currency, using exchange rates set by Apple/Play. Your payments will be processed by Apple/Play within 24 hours of the end of the current billing cycle.
           </Text>
         </View>

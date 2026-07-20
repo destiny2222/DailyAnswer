@@ -65,7 +65,8 @@
             "allowBackup": false
           }
         }
-      ]
+      ],
+      "expo-iap"
     ],
     "experiments": {
       "typedRoutes": true,

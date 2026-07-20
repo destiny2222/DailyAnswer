@@ -9,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isAuthenticated } from '../../../utils/auth';
@@ -22,6 +23,13 @@ const NotesScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadNotes();
+    setRefreshing(false);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -126,6 +134,14 @@ const NotesScreen = () => {
           renderItem={renderNoteItem}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#E94B7B"
+              colors={["#E94B7B"]}
+            />
+          }
           ListEmptyComponent={
             <View className="flex-1 items-center justify-center mt-20 bg-gray-900">
               <Ionicons name="document-text-outline" size={64} color="#666" />

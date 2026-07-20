@@ -16,6 +16,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isAuthenticated } from '../../../utils/auth';
@@ -118,6 +119,13 @@ const PrayerScreen = () => {
   // Form state
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadPrayers();
+    setRefreshing(false);
+  }, []);
 
   const loadPrayers = async () => {
     try {
@@ -375,6 +383,14 @@ const PrayerScreen = () => {
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#E94B7B"
+              colors={["#E94B7B"]}
+            />
+          }
           ListEmptyComponent={
             <View className="mt-16 items-center rounded-3xl border border-dashed border-slate-700 bg-slate-800/50 px-6 py-10">
               <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-[#E94B7B]/15">

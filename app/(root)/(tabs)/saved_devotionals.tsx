@@ -1,4 +1,4 @@
-import { View, Text, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +12,14 @@ import { DevotionCard } from './resources';
 export default function SavedDevotionalsScreen() {
   const [devotionals, setDevotionals] = useState<Devotional[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadSavedDevotionals();
+    setRefreshing(false);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,6 +75,14 @@ export default function SavedDevotionalsScreen() {
           keyExtractor={(item) => String(item.id)}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100, paddingHorizontal: 16, paddingTop: 20 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#E94B7B"
+              colors={["#E94B7B"]}
+            />
+          }
           renderItem={({ item, index }) => (
             <DevotionCard
               item={item as any}
