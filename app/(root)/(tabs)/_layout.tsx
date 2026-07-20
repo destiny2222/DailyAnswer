@@ -201,6 +201,7 @@ export default function TabLayout() {
       <Tabs.Screen name="subscription" options={{ href: null }} />
       <Tabs.Screen name="about" options={{ href: null }} />
       <Tabs.Screen name="prayer" options={{ href: null }} />
+      <Tabs.Screen name="saved_devotionals" options={{ href: null }} />
       <Tabs.Screen name="security" options={{ href: null }} />
       <Tabs.Screen name="support" options={{ href: null }} />
       <Tabs.Screen name="edit_profile" options={{ href: null }} />

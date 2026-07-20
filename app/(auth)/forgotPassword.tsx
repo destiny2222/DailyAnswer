@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import * as Clipboard from "expo-clipboard";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Text,
@@ -14,7 +13,8 @@ import {
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
 import { apiRequest } from "../../utils/api";
-import RecaptchaWidget from "../../components/RecaptchaWidget";
+import TurnstileWidget from "../../components/TurnstileWidget";
+import { useOtpAutoFill } from "../../utils/useOtpAutoFill";
 
 const ForgotPassword = () => {
   const router = useRouter();
@@ -34,13 +34,7 @@ const ForgotPassword = () => {
   });
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (step !== "otp") return;
-    Clipboard.getStringAsync().then((text) => {
-      const code = text?.trim().match(/^\d{6}$/);
-      if (code) setOtp(code[0]);
-    });
-  }, [step]);
+  useOtpAutoFill(step === "otp", setOtp);
 
   const handleSendOtp = async () => {
     if (!email) {
@@ -70,7 +64,7 @@ const ForgotPassword = () => {
           method: "POST",
           body: { 
             email,
-            "g-recaptcha-response": recaptchaToken,
+            "cf-turnstile-response": recaptchaToken,
           },
           auth: false,
         }
@@ -169,13 +163,21 @@ const ForgotPassword = () => {
 
   return (
     <View className="flex-1 bg-slate-900 pt-24">
-      <TouchableOpacity
-        onPress={() => router.back()}
-        className="absolute top-32 left-6 z-10 p-2"
-        activeOpacity={0.7}
-      >
-        <Ionicons name="arrow-back" size={24} color="#fff" />
-      </TouchableOpacity>
+      {(step === "otp" || router.canGoBack()) && (
+        <TouchableOpacity
+          onPress={() => {
+            if (step === "otp") {
+              setStep("email");
+            } else {
+              router.back();
+            }
+          }}
+          className="absolute top-32 left-6 z-10 p-2"
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
@@ -220,8 +222,7 @@ const ForgotPassword = () => {
                   </View>
                 </View>
 
-                {/* Turnstile Widget */}
-                <RecaptchaWidget onVerify={setRecaptchaToken} />
+                <TurnstileWidget onVerify={setRecaptchaToken} />
 
                 <TouchableOpacity
                   onPress={handleSendOtp}
@@ -250,7 +251,10 @@ const ForgotPassword = () => {
                       placeholder="Enter the OTP code"
                       placeholderTextColor="#9CA3AF"
                       keyboardType="number-pad"
-                      autoCapitalize="none"
+                      maxLength={6}
+                      textContentType="oneTimeCode"
+                      autoComplete="one-time-code"
+                      autoFocus={true}
                       className="flex-1 ml-3 text-white text-base"
                     />
                   </View>

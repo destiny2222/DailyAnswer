@@ -2,8 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Link, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
-import * as Clipboard from "expo-clipboard";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,8 +15,9 @@ import {
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
 import { ApiError, apiRequest } from "../../utils/api";
-import RecaptchaWidget from "../../components/RecaptchaWidget";
+import TurnstileWidget from "../../components/TurnstileWidget";
 import { useGlobalContext } from "../../utils/auth";
+import { useOtpAutoFill } from "../../utils/useOtpAutoFill";
 
 interface RegisterResponse {
   success: boolean;
@@ -39,6 +39,7 @@ const SignUp = () => {
   const [email, setEmail] = useState(""); // Restored
   const [password, setPassword] = useState(""); // Restored
   const [confirmPassword, setConfirmPassword] = useState(""); // Restored
+  const [phone, setPhone] = useState("");
   const [referralCode, setReferralCode] = useState(""); // New field
   const [showPassword, setShowPassword] = useState(false); // Restored
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -54,18 +55,12 @@ const SignUp = () => {
   const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
 
-  useEffect(() => {
-    if (step !== "otp") return;
-    Clipboard.getStringAsync().then((text) => {
-      const code = text?.trim().match(/^\d{6}$/);
-      if (code) setOtp(code[0]);
-    });
-  }, [step]);
+  useOtpAutoFill(step === "otp", setOtp);
 
   const handleSignUp = async () => {
     
 
-    if (!fullName  || !email || !password || !confirmPassword) {
+    if (!fullName || !email || !phone || !password || !confirmPassword) {
       setAlertConfig({
         title: "Validation Error",
         message: "Please fill in all fields",
@@ -113,11 +108,12 @@ const SignUp = () => {
         body: {
           name: fullName,
           email,
+          phone,
           username,
           password,
           password_confirmation: confirmPassword,
           referral_code: referralCode,
-          "g-recaptcha-response": recaptchaToken,
+          "cf-turnstile-response": recaptchaToken,
         },
         auth: false,
       });
@@ -265,13 +261,21 @@ const SignUp = () => {
           {/* Header Section */}
           <View className="px-6 pt-24 pb-6">
             <View className="relative">
-              <TouchableOpacity
-                onPress={() => router.back()}
-                className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center absolute"
-                activeOpacity={0.8}
-              >
-                <Ionicons name="arrow-back" size={24} color="white" />
-              </TouchableOpacity> 
+              {(step === "otp" || router.canGoBack()) && (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (step === "otp") {
+                      setStep("form");
+                    } else {
+                      router.back();
+                    }
+                  }}
+                  className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center absolute"
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="arrow-back" size={24} color="white" />
+                </TouchableOpacity> 
+              )}
             </View>
             <View className="items-center mb-6">
               {/* <View className="w-20 h-20 rounded-full bg-[#E94B7B]/20 items-center justify-center mb-4">
@@ -324,6 +328,26 @@ const SignUp = () => {
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoComplete="email"
+                      className="flex-1 ml-3 text-white text-base"
+                    />
+                  </View>
+                </View>
+
+                {/* Phone Input */}
+                <View className="mb-4">
+                  <Text className="text-white/80 text-sm font-semibold mb-2">
+                    Phone Number
+                  </Text>
+                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
+                    <Ionicons name="call-outline" size={20} color="#9CA3AF" />
+                    <TextInput
+                      value={phone}
+                      onChangeText={setPhone}
+                      placeholder="+1234567890"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="phone-pad"
+                      autoComplete="tel"
+                      textContentType="telephoneNumber"
                       className="flex-1 ml-3 text-white text-base"
                     />
                   </View>
@@ -417,8 +441,7 @@ const SignUp = () => {
                   </View>
                 </View>
 
-                {/* Turnstile Widget */}
-                <RecaptchaWidget onVerify={setRecaptchaToken} />
+                <TurnstileWidget onVerify={setRecaptchaToken} />
 
                 {/* Sign Up Button */}
                 <TouchableOpacity
@@ -451,6 +474,9 @@ const SignUp = () => {
                       placeholderTextColor="#4B5563"
                       keyboardType="number-pad"
                       maxLength={6}
+                      textContentType="oneTimeCode"
+                      autoComplete="one-time-code"
+                      autoFocus={true}
                       className="ml-4 text-white text-3xl font-bold tracking-[10px] flex-1 text-center"
                       secureTextEntry={true}
                     />

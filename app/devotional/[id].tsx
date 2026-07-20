@@ -1,5 +1,12 @@
-import book from '@/assets/images/devotion.jpg';
-import { formatDateLong } from '@/utils/date';
+import devo1 from '@/assets/images/devo/1.jpg';
+import devo2 from '@/assets/images/devo/2.jpg';
+import devo3 from '@/assets/images/devo/3.jpg';
+import devo4 from '@/assets/images/devo/4.jpg';
+import devo5 from '@/assets/images/devo/5.jpg';
+import devo6 from '@/assets/images/devo/6.jpg';
+import devo7 from '@/assets/images/devo/7.jpg';
+
+import { formatDateLong, safeParseDate } from '@/utils/date';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -22,6 +29,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { detailDevotional } from '../../libs/devotional';
+import CustomAlert from "@/components/CustomAlert";
+
+const getFallbackImage = (dateInput?: string | Date) => {
+  const date = safeParseDate(dateInput);
+  const day = date.getDay();
+  const fallbackImages = [devo1, devo2, devo3, devo4, devo5, devo6, devo7];
+  return fallbackImages[day] || fallbackImages[0];
+};
 
 const SAVED_DEVOTIONAL_IDS_KEY = 'saved_devotional_ids';
 
@@ -74,6 +89,8 @@ const DevotionalDetail = () => {
   const [fontSize, setFontSize] = useState(18);
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertConfig, setAlertConfig] = useState({ title: '', message: '', type: 'success' as 'success' | 'error' });
 
   // Audio state management
   const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
@@ -143,7 +160,8 @@ const DevotionalDetail = () => {
       setIsSaving(true);
       const devotionalId = String(devotional.id);
       const savedIds = await getSavedDevotionalIds();
-      const nextSavedIds = savedIds.includes(devotionalId)
+      const isCurrentlySaved = savedIds.includes(devotionalId);
+      const nextSavedIds = isCurrentlySaved
         ? savedIds.filter((savedId) => savedId !== devotionalId)
         : [...savedIds, devotionalId];
 
@@ -151,9 +169,19 @@ const DevotionalDetail = () => {
         SAVED_DEVOTIONAL_IDS_KEY,
         JSON.stringify(nextSavedIds),
       );
-      setIsSaved(nextSavedIds.includes(devotionalId));
+      
+      const newValue = nextSavedIds.includes(devotionalId);
+      setIsSaved(newValue);
+
+      setAlertConfig({
+        title: newValue ? "Saved" : "Removed",
+        message: newValue ? "Devotional has been saved to your profile." : "Devotional removed from saved items.",
+        type: newValue ? "success" : "error"
+      });
+      setAlertVisible(true);
     } catch (error) {
-      Alert.alert('Save Error', 'Unable to update this devotional right now.');
+      setAlertConfig({ title: "Error", message: "Unable to update this devotional right now.", type: "error" });
+      setAlertVisible(true);
     } finally {
       setIsSaving(false);
     }
@@ -354,7 +382,7 @@ const DevotionalDetail = () => {
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Hero Image */}
         <Image
-          source={devotional.image ? { uri: devotional.image } : book}
+          source={getFallbackImage(devotional.date)}
           className="w-full h-64 bg-white"
           resizeMode="contain"
         />
@@ -602,6 +630,14 @@ const DevotionalDetail = () => {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <CustomAlert 
+        visible={alertVisible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        onClose={() => setAlertVisible(false)}
+      />
     </SafeAreaView>
   );
 };

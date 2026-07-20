@@ -8,6 +8,7 @@ import { router } from 'expo-router'
 import * as Clipboard from 'expo-clipboard'
 import CustomAlert from '@/components/CustomAlert'
 import { StatusBar } from 'expo-status-bar'
+import * as SecureStore from 'expo-secure-store'
 
 const MemoryVerse = () => {
   const [memories, setMemories] = useState<Memory[]>([])
@@ -22,7 +23,16 @@ const MemoryVerse = () => {
     try {
       setLoading(true)
       const data = await fetchMemories()
-      setMemories(data)
+      
+      // Filter to only include memories saved locally
+      const savedMemories = [];
+      for (const memory of data) {
+        const saved = await SecureStore.getItemAsync(`saved_memory_${memory.id}`);
+        if (saved === 'true') {
+          savedMemories.push(memory);
+        }
+      }
+      setMemories(savedMemories)
     } catch (error) {
       
     } finally {

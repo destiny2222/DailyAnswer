@@ -2,8 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Link, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { StatusBar } from "expo-status-bar";
-import * as Clipboard from "expo-clipboard";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -17,7 +16,8 @@ import {
 import CustomAlert from "../../components/CustomAlert";
 import { ApiError, apiRequest } from "../../utils/api";
 import { useGlobalContext } from "../../utils/auth";
-import RecaptchaWidget from "../../components/RecaptchaWidget";
+import TurnstileWidget from "../../components/TurnstileWidget";
+import { useOtpAutoFill } from "../../utils/useOtpAutoFill";
 
 interface LoginResponse {
   success: boolean;
@@ -49,13 +49,7 @@ const Login = () => {
   const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
 
-  useEffect(() => {
-    if (step !== "otp") return;
-    Clipboard.getStringAsync().then((text) => {
-      const code = text?.trim().match(/^\d{6}$/);
-      if (code) setOtp(code[0]);
-    });
-  }, [step]);
+  useOtpAutoFill(step === "otp", setOtp);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -86,7 +80,7 @@ const Login = () => {
         body: {
           email,
           password,
-          "g-recaptcha-response": recaptchaToken,
+          "cf-turnstile-response": recaptchaToken,
         },
         auth: false,
       });
@@ -230,14 +224,24 @@ const Login = () => {
     <View className="flex-1 bg-slate-900 pt-24 justify-center">
       <StatusBar style="light" animated={true}/>
       <View className="flex-row items-center px-4 py-4  border-slate-800">
-        <TouchableOpacity
-          onPress={() => router.back()}
-          className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
-          activeOpacity={0.8}
-        >
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        {/* <Text className="flex-1 text-center text-xl font-bold text-white">
+        {(step === "otp" || router.canGoBack()) ? (
+          <TouchableOpacity
+            onPress={() => {
+              if (step === "otp") {
+                setStep("form");
+              } else {
+                router.back();
+              }
+            }}
+            className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+        ) : (
+          <View className="w-11" />
+        )}
+        {/* 0x4AAAAAADn6VZck3a4x12YW <Text className="flex-1 text-center text-xl font-bold text-white">
           Sign In
         </Text> */}
         <View className="w-11" />
@@ -328,8 +332,7 @@ const Login = () => {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Turnstile Widget */}
-                <RecaptchaWidget onVerify={setRecaptchaToken} />
+                <TurnstileWidget onVerify={setRecaptchaToken} />
 
                 {/* Login Button */}
                 <TouchableOpacity
