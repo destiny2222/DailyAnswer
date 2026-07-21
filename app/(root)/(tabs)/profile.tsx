@@ -42,7 +42,7 @@ const SettingsItem = ({
 const Profile = () => {
   const router = useRouter();
   const [authenticated, setAuthenticated] = useState(false);
-  const { user, setUser } = useGlobalContext();
+  const { user, setUser, hasPaid } = useGlobalContext();
   const [profileImage, setProfileImage] = useState<string | null>(null);
   
     useEffect(() => {
@@ -142,7 +142,9 @@ const Profile = () => {
          
         <View className="flex flex-col mt-10">
           <SettingsItem icon={icons.person}  title="Profile" onPress={() => router.push('/edit_profile')}/>
-          <SettingsItem icon={icons.bell}  title='Subscription' onPress={() => router.push('/subscription')}/>
+          {!hasPaid && (
+            <SettingsItem icon={icons.bell}  title='Subscription' onPress={() => router.push('/subscription')}/>
+          )}
           <SettingsItem icon={icons.dumbell} title='Donation' onPress={() => router.push('/ManageSupport')}/>
           <SettingsItem icon={icons.language}  title="Memory Verse" onPress={() => router.push('/memory')} />
           <SettingsItem icon={icons.star}  title="Bookmark" onPress={() => router.push('/saved_devotionals')} />

@@ -49,7 +49,10 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
+      <StripeProvider 
+        publishableKey={STRIPE_PUBLISHABLE_KEY}
+        merchantIdentifier="merchant.com.thedailyanswer"
+      >
         <Stack screenOptions={{ headerShown: false }}/>
       </StripeProvider>
     </AuthProvider>

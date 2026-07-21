@@ -13,15 +13,22 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Platform
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as IAP from "expo-iap";
-import { initIAPConnection, fetchSubscriptions, requestPurchase, verifyReceiptWithBackend } from "@/libs/iap";
+import { usePlatformPay, PlatformPay } from "@stripe/stripe-react-native";
+import { apiRequest } from "@/utils/api";
+
+interface Plan {
+  id: number;
+  plan_id: string;
+  name: string;
+  price: number;
+  interval: string;
+}
 
 const Subscription = () => {
-  const { setHasPaid } = useGlobalContext();
-  const [plans, setPlans] = useState<IAP.Subscription[]>([]);
+  const { setHasPaid, hasPaid } = useGlobalContext();
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubscribing, setIsSubscribing] = useState(false);
@@ -32,75 +39,20 @@ const Subscription = () => {
     type: "success" as "success" | "error",
   });
 
-  useEffect(() => {
-    let purchaseUpdateSubscription: any = null;
-    let purchaseErrorSubscription: any = null;
+  const {isPlatformPaySupported, confirmPlatformPayPayment} = usePlatformPay();
 
-    const setupIAP = async () => {
+  useEffect(() => {
+    const fetchPlans = async () => {
       try {
         setLoading(true);
-        await initIAPConnection();
-        const availablePlans = await fetchSubscriptions();
+        const response = await apiRequest<{ success: boolean; plans: Plan[] }>("/payment/plans", { auth: true });
         
-        setPlans(availablePlans);
-        if (availablePlans.length > 0) {
-          setSelectedPlan(availablePlans[0].productId);
+        if (response.success) {
+          setPlans(response.plans);
+          if (response.plans.length > 0) {
+            setSelectedPlan(response.plans[0].id.toString());
+          }
         }
-
-        // Set up listeners for purchases
-        purchaseUpdateSubscription = IAP.purchaseUpdatedListener(async (purchase: IAP.ProductPurchase | IAP.SubscriptionPurchase) => {
-          const receipt = purchase.transactionReceipt;
-          
-          if (receipt) {
-            try {
-              // Send receipt to your Laravel backend for validation
-              const verification = await verifyReceiptWithBackend(receipt, purchase.productId);
-
-              if (verification.success) {
-                // Tell Apple/Google we've successfully delivered the content
-                await IAP.finishTransaction({ purchase, isConsumable: false });
-                
-                setHasPaid(true);
-                setIsSubscribing(false);
-
-                setAlertConfig({
-                  title: "Payment Successful! 🎉",
-                  message: "Your subscription is now active. Enjoy full access to all premium features!",
-                  type: "success",
-                });
-                setAlertVisible(true);
-                
-                setTimeout(() => {
-                  router.replace('/(root)/(tabs)');
-                }, 2000);
-              } else {
-                throw new Error(verification.message || "Could not verify subscription.");
-              }
-            } catch (err: any) {
-              setIsSubscribing(false);
-              setAlertConfig({
-                title: "Verification Error",
-                message: err.message || "Failed to verify receipt with server.",
-                type: "error",
-              });
-              setAlertVisible(true);
-            }
-          }
-        });
-
-        purchaseErrorSubscription = IAP.purchaseErrorListener((error: IAP.PurchaseError) => {
-          setIsSubscribing(false);
-          // Don't show an error if the user just cancelled the dialog
-          if (error.code !== "E_USER_CANCELLED") {
-            setAlertConfig({
-              title: "Purchase Error",
-              message: error.message,
-              type: "error",
-            });
-            setAlertVisible(true);
-          }
-        });
-
       } catch (e) {
         setAlertConfig({
           title: "Error",
@@ -113,17 +65,7 @@ const Subscription = () => {
       }
     };
 
-    setupIAP();
-
-    return () => {
-      if (purchaseUpdateSubscription) {
-        purchaseUpdateSubscription.remove();
-      }
-      if (purchaseErrorSubscription) {
-        purchaseErrorSubscription.remove();
-      }
-      IAP.endConnection();
-    };
+    fetchPlans();
   }, []);
 
   const handleSelectPlan = (planId: string) => {
@@ -132,18 +74,78 @@ const Subscription = () => {
 
   const handleSubscribe = async () => {
     if (!selectedPlan) {
-      setAlertConfig({
-        title: "No Plan Selected",
-        message: "Please select a subscription plan.",
-        type: "error",
-      });
+      setAlertConfig({ title: "No Plan Selected", message: "Please select a subscription plan.", type: "error" });
       setAlertVisible(true);
       return;
     }
 
+    const plan = plans.find(p => p.id.toString() === selectedPlan);
+    if (!plan) return;
+
     setIsSubscribing(true);
     try {
-      await requestPurchase(selectedPlan);
+      if (!(await isPlatformPaySupported({ googlePay: { testEnv: true } }))) {
+        throw new Error("Apple Pay / Google Pay is not supported on this device.");
+      }
+
+      // 1. Create PaymentIntent on backend
+      const intentResponse = await apiRequest<{ success: boolean; clientSecret: string; customerId: string }>("/payment/create-subscription", {
+        method: "POST",
+        body: { plan_id: plan.id },
+        auth: true,
+      });
+
+      if (!intentResponse.success || !intentResponse.clientSecret) {
+        throw new Error("Failed to initialize payment.");
+      }
+
+      // 2. Confirm with PlatformPay
+      const { error, paymentIntent } = await confirmPlatformPayPayment(intentResponse.clientSecret, {
+        applePay: {
+          cartItems: [
+            {
+              label: plan.name,
+              amount: plan.price.toString(),
+              paymentType: PlatformPay.PaymentType.Immediate,
+            },
+          ],
+          merchantCountryCode: "US",
+          currencyCode: "USD",
+        },
+        googlePay: {
+          testEnv: true,
+          merchantName: "Daily Answer",
+          merchantCountryCode: "US",
+          currencyCode: "USD",
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || "Payment was not successful.");
+      }
+
+      // 3. Confirm with backend
+      const confirmResponse = await apiRequest<{ success: boolean; message: string }>("/payment/confirm", {
+        method: "POST",
+        body: { payment_intent_id: paymentIntent.id },
+        auth: true,
+      });
+
+      if (confirmResponse.success) {
+        setHasPaid(true);
+        setIsSubscribing(false);
+        setAlertConfig({
+          title: "Payment Successful! 🎉",
+          message: "Your subscription is now active. Enjoy full access to all premium features!",
+          type: "success",
+        });
+        setAlertVisible(true);
+        setTimeout(() => {
+          router.replace('/(root)/(tabs)');
+        }, 2000);
+      } else {
+        throw new Error(confirmResponse.message || "Failed to confirm payment on server.");
+      }
     } catch (e: any) {
       setIsSubscribing(false);
       setAlertConfig({
@@ -160,6 +162,51 @@ const Subscription = () => {
     "Read devotionals offline in the app",
     "Listen to any devotional",
   ];
+
+  if (hasPaid) {
+    return (
+      <SafeAreaView className="flex-1 bg-slate-900">
+        <StatusBar style="light" />
+        <View className="flex-row items-center px-4 py-4 border-b border-slate-800">
+          <TouchableOpacity
+            onPress={() => router.replace('/profile')}
+            className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text className="flex-1 text-center text-xl font-bold text-white">
+            Subscription
+          </Text>
+          <View className="w-11" />
+        </View>
+        <View className="flex-1 items-center justify-center px-6">
+          <Ionicons name="checkmark-circle" size={80} color="#E94B7B" className="mb-6" />
+          <Text className="text-white text-2xl font-bold text-center mb-3 mt-6">
+            You're All Set!
+          </Text>
+          <Text className="text-slate-400 text-base text-center mb-8">
+            You already have an active subscription and full access to all devotional contents.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.replace('/(root)/(tabs)')}
+            className="bg-pink-600 w-full py-4 rounded-xl items-center justify-center mt-4"
+          >
+            <Text className="text-white text-lg font-bold">
+              Go to Home
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <CustomAlert
+          visible={alertVisible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          type={alertConfig.type}
+          onClose={() => setAlertVisible(false)}
+        />
+      </SafeAreaView>
+    );
+  }
 
   if (loading) {
     return (
@@ -211,21 +258,18 @@ const Subscription = () => {
           <View className="w-full mb-6">
             {plans.map((plan) => (
               <TouchableOpacity
-                key={plan.productId}
-                onPress={() => handleSelectPlan(plan.productId)}
+                key={plan.id}
+                onPress={() => handleSelectPlan(plan.id.toString())}
                 className={`border-2 rounded-xl p-4 mb-4 ${
-                  selectedPlan === plan.productId
+                  selectedPlan === plan.id.toString()
                     ? "border-pink-500 bg-pink-500/10"
                     : "border-slate-700"
                 }`}
               >
                 <View className="flex-row justify-between items-center">
-                  <Text className="text-white text-lg font-semibold">{plan.title || plan.name}</Text>
-                  <Text className="text-white text-lg font-bold">{plan.localizedPrice}</Text>
+                  <Text className="text-white text-lg font-semibold">{plan.name}</Text>
+                  <Text className="text-white text-lg font-bold">${plan.price.toFixed(2)}</Text>
                 </View>
-                {plan.description && (
-                  <Text className="text-slate-400 text-sm mt-1">{plan.description}</Text>
-                )}
               </TouchableOpacity>
             ))}
             {plans.length === 0 && (
@@ -243,7 +287,7 @@ const Subscription = () => {
               <ActivityIndicator color="#fff" />
             ) : (
               <Text className="text-white text-lg font-bold">
-                Subscribe
+                Subscribe 
               </Text>
             )}
           </TouchableOpacity>
@@ -259,7 +303,7 @@ const Subscription = () => {
           </View>
 
           <Text className="text-slate-500 text-xs text-center">
-            Your Daily Answer membership will be billed in your local currency, using exchange rates set by Apple/Play. Your payments will be processed by Apple/Play within 24 hours of the end of the current billing cycle.
+            Your Daily Answer membership will be billed in your local currency. Your payments will be processed securely via Stripe.
           </Text>
         </View>
       </ScrollView>

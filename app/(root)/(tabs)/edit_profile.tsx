@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Image, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useGlobalContext } from '../../../utils/auth';
 import { apiRequest, ApiError } from '../../../utils/api';
 import * as ImagePicker from 'expo-image-picker';
@@ -10,12 +10,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 
 const EditProfile = () => {
-  const { user, setUser } = useGlobalContext();
+  const {user, setUser, loading: isFetchingUser, refetchUser} = useGlobalContext();
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [alertInfo, setAlertInfo] = useState<{
     visible: boolean;
@@ -29,7 +30,14 @@ const EditProfile = () => {
     type: 'success',
   });
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refetchUser();
+    setRefreshing(false);
+  };
+
   useEffect(() => {
+    
     if (user) {
       setName(user.name);
       setUsername(user.username);
@@ -181,6 +189,16 @@ const handleImageUpload = async (uri: string) => {
     }
   };
 
+  if (isFetchingUser || !user) {
+    return (
+      <SafeAreaView className='flex-1 bg-gray-900 justify-center items-center' edges={['top']}>
+        <StatusBar style="light" />
+        <ActivityIndicator size="large" color="#E94B7B" />
+        <Text className="text-gray-400 mt-4">Loading profile...</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView className='flex-1 bg-gray-900' edges={['top']}>
       <StatusBar style="light" />
@@ -197,7 +215,11 @@ const handleImageUpload = async (uri: string) => {
         </Text>
         <View className="w-11" />
       </View>
-    <ScrollView>
+    <ScrollView
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#E94B7B" />
+      }
+    >
         <CustomAlert
             visible={alertInfo.visible}
             title={alertInfo.title}
