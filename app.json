@@ -12,9 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.thedailyanswer",
       "infoPlist": {
-        "NSCameraUsageDescription": "This app uses the camera to scan QR codes.",
-        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload images.",
-        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to provide location-based services."
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -31,7 +29,9 @@
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "package": "com.thedailyanswer"
     },
