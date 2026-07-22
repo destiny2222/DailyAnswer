@@ -11,11 +11,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.thedailyanswer",
-      // "infoPlist": {
-      //   "NSCameraUsageDescription": "This app uses the camera to scan QR codes.",
-      //   "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload images.",
-      //   "NSLocationWhenInUseUsageDescription": "This app needs access to your location to provide location-based services."
-      // }
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload images.",
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location to provide location-based services."
+      }
     },
     "android": {
       "adaptiveIcon": {
