@@ -3,7 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from "expo-secure-store";
 import React, { useEffect, useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, Text, TouchableOpacity, View, Platform } from 'react-native';
+import { apiEndpoint } from '../../../utils/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isAuthenticated, useGlobalContext } from '../../../utils/auth';
 import { StatusBar } from 'expo-status-bar';
@@ -71,6 +72,30 @@ const Profile = () => {
     SecureStore.deleteItemAsync("access_token");
     setUser(null);
     router.replace("/(auth)/login");
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await apiEndpoint("v1/profile/delete", { method: "DELETE" });
+              await SecureStore.deleteItemAsync("access_token");
+              setUser(null);
+              router.replace("/(auth)/login");
+            } catch (error) {
+              Alert.alert("Error", "Failed to delete account. Please try again later.");
+            }
+          },
+        },
+      ]
+    );
   };
 
 
@@ -145,7 +170,7 @@ const Profile = () => {
           {!hasPaid && (
             <SettingsItem icon={icons.bell}  title='Subscription' onPress={() => router.push('/subscription')}/>
           )}
-          <SettingsItem icon={icons.dumbell} title='Donation' onPress={() => router.push('/ManageSupport')}/>
+            <SettingsItem icon={icons.dumbell} title='Donation' onPress={() => router.push('/ManageSupport')}/>
           <SettingsItem icon={icons.language}  title="Memory Verse" onPress={() => router.push('/memory')} />
           <SettingsItem icon={icons.star}  title="Bookmark" onPress={() => router.push('/saved_devotionals')} />
           <SettingsItem icon={icons.file}  title="Notes" onPress={() => router.push('/note')} />
@@ -157,6 +182,9 @@ const Profile = () => {
         <View className="flex flex-col mt-5 pt-5 border-primary-200">
           <SettingsItem icon={icons.logout} title="Logout"
             onPress={handleLogout} textStyle="text-red-500"  showArrow={false}
+          />
+          <SettingsItem icon={icons.deleteicon} title="Delete Account"
+            onPress={handleDeleteAccount} textStyle="text-red-500" showArrow={false}
           />
         </View>
       </View>

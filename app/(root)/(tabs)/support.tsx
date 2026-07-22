@@ -2,7 +2,7 @@ import logoImage from "@/assets/images/logo.jpeg";
 import CustomAlert from "@/components/CustomAlert";
 import { confirmPayment, confirmRecurringSupport, createSupport } from "@/libs/payment";
 import { Ionicons } from "@expo/vector-icons";
-import { useStripe } from "@stripe/stripe-react-native";
+import { useStripe, usePlatformPay, PlatformPay } from "@stripe/stripe-react-native";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useState } from "react";
@@ -14,11 +14,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const Support = () => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { isPlatformPaySupported, confirmPlatformPayPayment, confirmPlatformPaySetupIntent } = usePlatformPay();
   const [amount, setAmount] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
   const [interval, setInterval] = useState < "monthly" | "yearly" > ("monthly");
@@ -60,129 +62,238 @@ const Support = () => {
 
       const { clientSecret, customerId, type, priceId, setupIntentId } = response;
 
-      if (isRecurring) {
-        // For recurring payments, use setupIntentClientSecret
-        const { error: initError } = await initPaymentSheet({
-          merchantDisplayName: "The Daily Answer",
-          customerId: customerId,
-          setupIntentClientSecret: clientSecret,
-          allowsDelayedPaymentMethods: false,
-        });
-
-        if (initError) {
-          setAlertConfig({
-            title: "Error",
-            message: "Failed to initialize payment sheet.",
-            type: "error",
-          });
-          setAlertVisible(true);
-          setIsProcessing(false);
-          return;
+      if (Platform.OS === 'ios') {
+        if (!(await isPlatformPaySupported({ googlePay: { testEnv: true } }))) {
+          throw new Error("Apple Pay is not supported on this device.");
         }
 
-        const { error: presentError } = await presentPaymentSheet();
+        if (isRecurring) {
+          const { error: presentError } = await confirmPlatformPaySetupIntent(clientSecret, {
+            applePay: {
+              cartItems: [
+                {
+                  label: "Donation",
+                  amount: parsedAmount.toString(),
+                  paymentType: PlatformPay.PaymentType.Recurring,
+                },
+              ],
+              merchantCountryCode: "US",
+              currencyCode: "USD",
+            },
+          });
 
-        if (presentError) {
-          if (presentError.code !== "Canceled") {
+          if (presentError) {
+            if (presentError.code !== "Canceled") {
+              setAlertConfig({
+                title: "Payment Error",
+                message: presentError.message || "Failed to confirm payment.",
+                type: "error",
+              });
+              setAlertVisible(true);
+            }
+            setIsProcessing(false);
+            return;
+          }
+
+          const confirmation = await confirmRecurringSupport(setupIntentId, priceId);
+
+          if (confirmation.success) {
             setAlertConfig({
-              title: "Payment Error",
-              message: presentError.message,
+              title: "Thank You! 🎉",
+              message: `Your recurring support of $${parsedAmount.toFixed(2)} has been set up successfully. We truly appreciate your generosity!`,
+              type: "success",
+            });
+            setAlertVisible(true);
+            setAmount("");
+            setIsRecurring(false);
+            setTimeout(() => {
+              router.replace("/ManageSupport" as any);
+            }, 2000);
+          } else {
+            setAlertConfig({
+              title: "Confirmation Failed",
+              message: confirmation.message || "Could not set up recurring support.",
               type: "error",
             });
             setAlertVisible(true);
           }
-          setIsProcessing(false);
-          return;
-        }
-
-        // After successful payment method collection, create the subscription
-        const confirmation = await confirmRecurringSupport(setupIntentId, priceId);
-
-        if (confirmation.success) {
-          setAlertConfig({
-            title: "Thank You! 🎉",
-            message: `Your recurring support of $${parsedAmount.toFixed(2)} has been set up successfully. We truly appreciate your generosity!`,
-            type: "success",
-          });
-          setAlertVisible(true);
-
-          // Reset form
-          setAmount("");
-          setIsRecurring(false);
-
-          // Navigate to Manage Support after a delay
-          setTimeout(() => {
-            router.replace("/ManageSupport" as any);
-          }, 2000);
-
         } else {
-          setAlertConfig({
-            title: "Confirmation Failed",
-            message: confirmation.message || "Could not set up recurring support.",
-            type: "error",
+          // One-time payment via Apple Pay
+          const { error: presentError } = await confirmPlatformPayPayment(clientSecret, {
+            applePay: {
+              cartItems: [
+                {
+                  label: "Donation",
+                  amount: parsedAmount.toString(),
+                  paymentType: PlatformPay.PaymentType.Immediate,
+                },
+              ],
+              merchantCountryCode: "US",
+              currencyCode: "USD",
+            },
           });
-          setAlertVisible(true);
+
+          if (presentError) {
+            if (presentError.code !== "Canceled") {
+              setAlertConfig({
+                title: "Payment Error",
+                message: presentError.message || "Failed to confirm payment.",
+                type: "error",
+              });
+              setAlertVisible(true);
+            }
+            setIsProcessing(false);
+            return;
+          }
+
+          const paymentIntentId = clientSecret.split("_secret")[0];
+          const confirmation = await confirmPayment(paymentIntentId);
+
+          if (confirmation.success) {
+            setAlertConfig({
+              title: "Thank You! 🎉",
+              message: `Your one-time support of $${parsedAmount.toFixed(2)} has been processed successfully. We truly appreciate your generosity!`,
+              type: "success",
+            });
+            setAlertVisible(true);
+            setAmount("");
+            setTimeout(() => {
+              router.replace("/ManageSupport" as any);
+            }, 2000);
+          } else {
+            setAlertConfig({
+              title: "Confirmation Failed",
+              message: confirmation.message || "Could not process your support payment.",
+              type: "error",
+            });
+            setAlertVisible(true);
+          }
         }
       } else {
-        // For one-time payments
-        const { error: initError } = await initPaymentSheet({
-          merchantDisplayName: "The Daily Answer",
-          customerId: customerId,
-          paymentIntentClientSecret: clientSecret,
-          allowsDelayedPaymentMethods: false,
-        });
-
-        if (initError) {
-          setAlertConfig({
-            title: "Error",
-            message: "Failed to initialize payment sheet.",
-            type: "error",
+        // Direct Stripe (Android)
+        if (isRecurring) {
+          const { error: initError } = await initPaymentSheet({
+            merchantDisplayName: "The Daily Answer",
+            customerId: customerId,
+            setupIntentClientSecret: clientSecret,
+            allowsDelayedPaymentMethods: false,
           });
-          setAlertVisible(true);
-          setIsProcessing(false);
-          return;
-        }
 
-        const { error: presentError } = await presentPaymentSheet();
-
-        if (presentError) {
-          if (presentError.code !== "Canceled") {
+          if (initError) {
             setAlertConfig({
-              title: "Payment Error",
-              message: presentError.message,
+              title: "Error",
+              message: "Failed to initialize payment sheet.",
+              type: "error",
+            });
+            setAlertVisible(true);
+            setIsProcessing(false);
+            return;
+          }
+
+          const { error: presentError } = await presentPaymentSheet();
+
+          if (presentError) {
+            if (presentError.code !== "Canceled") {
+              setAlertConfig({
+                title: "Payment Error",
+                message: presentError.message,
+                type: "error",
+              });
+              setAlertVisible(true);
+            }
+            setIsProcessing(false);
+            return;
+          }
+
+          // After successful payment method collection, create the subscription
+          const confirmation = await confirmRecurringSupport(setupIntentId, priceId);
+
+          if (confirmation.success) {
+            setAlertConfig({
+              title: "Thank You! 🎉",
+              message: `Your recurring support of $${parsedAmount.toFixed(2)} has been set up successfully. We truly appreciate your generosity!`,
+              type: "success",
+            });
+            setAlertVisible(true);
+
+            // Reset form
+            setAmount("");
+            setIsRecurring(false);
+
+            // Navigate to Manage Support after a delay
+            setTimeout(() => {
+              router.replace("/ManageSupport" as any);
+            }, 2000);
+
+          } else {
+            setAlertConfig({
+              title: "Confirmation Failed",
+              message: confirmation.message || "Could not set up recurring support.",
               type: "error",
             });
             setAlertVisible(true);
           }
-          setIsProcessing(false);
-          return;
-        }
-
-        const paymentIntentId = clientSecret.split("_secret")[0];
-        const confirmation = await confirmPayment(paymentIntentId);
-
-        if (confirmation.success) {
-          setAlertConfig({
-            title: "Thank You! 🎉",
-            message: `Your one-time support of $${parsedAmount.toFixed(2)} has been processed successfully. We truly appreciate your generosity!`,
-            type: "success",
-          });
-          setAlertVisible(true);
-
-          // Reset form
-          setAmount("");
-
-          // Navigate to Manage Support after a delay
-          setTimeout(() => {
-            router.replace("/ManageSupport" as any);
-          }, 2000);
         } else {
-          setAlertConfig({
-            title: "Confirmation Failed",
-            message: confirmation.message || "Could not process your support payment.",
-            type: "error",
+          // For one-time payments
+          const { error: initError } = await initPaymentSheet({
+            merchantDisplayName: "The Daily Answer",
+            customerId: customerId,
+            paymentIntentClientSecret: clientSecret,
+            allowsDelayedPaymentMethods: false,
           });
-          setAlertVisible(true);
+
+          if (initError) {
+            setAlertConfig({
+              title: "Error",
+              message: "Failed to initialize payment sheet.",
+              type: "error",
+            });
+            setAlertVisible(true);
+            setIsProcessing(false);
+            return;
+          }
+
+          const { error: presentError } = await presentPaymentSheet();
+
+          if (presentError) {
+            if (presentError.code !== "Canceled") {
+              setAlertConfig({
+                title: "Payment Error",
+                message: presentError.message,
+                type: "error",
+              });
+              setAlertVisible(true);
+            }
+            setIsProcessing(false);
+            return;
+          }
+
+          const paymentIntentId = clientSecret.split("_secret")[0];
+          const confirmation = await confirmPayment(paymentIntentId);
+
+          if (confirmation.success) {
+            setAlertConfig({
+              title: "Thank You! 🎉",
+              message: `Your one-time support of $${parsedAmount.toFixed(2)} has been processed successfully. We truly appreciate your generosity!`,
+              type: "success",
+            });
+            setAlertVisible(true);
+
+            // Reset form
+            setAmount("");
+
+            // Navigate to Manage Support after a delay
+            setTimeout(() => {
+              router.replace("/ManageSupport" as any);
+            }, 2000);
+          } else {
+            setAlertConfig({
+              title: "Confirmation Failed",
+              message: confirmation.message || "Could not process your support payment.",
+              type: "error",
+            });
+            setAlertVisible(true);
+          }
         }
       }
     } catch (e: any) {
@@ -348,7 +459,9 @@ const Support = () => {
             ) : (
               <Text className="text-white text-lg font-bold">
                 {amount
-                  ? `Support with $${parseFloat(amount || "0").toFixed(2)}`
+                  ? Platform.OS === 'ios'
+                    ? `Support with Apple Pay ($${parseFloat(amount || "0").toFixed(2)})`
+                    : `Support with $${parseFloat(amount || "0").toFixed(2)}`
                   : "Enter Amount"}
               </Text>
             )}
