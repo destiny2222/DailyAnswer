@@ -1,5 +1,12 @@
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { Platform, AppState, AppStateStatus } from 'react-native';
+import {
+  purchaseUpdatedListener,
+  purchaseErrorListener,
+  finishTransaction,
+  type Purchase,
+} from 'expo-iap';
 import { apiRequest } from "./api";
 import { logger } from "./logger";
 
@@ -22,6 +29,9 @@ interface AuthState {
   isAuthenticated: boolean;
   hasPaid: boolean;
   loading: boolean;
+  isVerifying: boolean;
+  iapError: string | null;
+  clearIapError: () => void;
   setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
   setHasPaid: (hasPaid: boolean) => void;
   refetchUser: () => Promise<void>;
@@ -35,13 +45,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasPaid, setHasPaid] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [iapError, setIapError] = useState<string | null>(null);
+
+  const clearIapError = () => setIapError(null);
 
   const refetchUser = async () => {
     try {
       const token = await SecureStore.getItemAsync("access_token");
       if (token) {
         setIsAuthenticated(true);
-        const profile = await getUserProfile();
+        // Force refresh when doing a manual refetch
+        const profile = await getUserProfile(true);
         if (profile) {
           setUser(profile);
           setHasPaid(profile.has_paid);
@@ -64,6 +79,78 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     refetchUser();
+
+    // 1. AppState listener: Refresh profile when app becomes active
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        logger.info('[Auth] App active, updating status');
+        refetchUser();
+      }
+    };
+    const appStateSub = AppState.addEventListener('change', handleAppStateChange);
+
+    // 2. iOS StoreKit listeners: Listen for purchase events
+    let updateSub: { remove: () => void } | null = null;
+    let errorSub: { remove: () => void } | null = null;
+
+    if (Platform.OS === 'ios') {
+      updateSub = purchaseUpdatedListener(async (purchase: Purchase) => {
+        logger.info('[IAP] Purchase update listener fired:', purchase.productId, 'state:', purchase.purchaseState);
+        
+        // Handle purchased or restored states
+        if (
+          purchase.purchaseState === 'purchased' ||
+          purchase.purchaseState === 1 ||
+          purchase.purchaseState === 'restored' ||
+          purchase.purchaseState === 3 ||
+          purchase.purchaseState === 0
+        ) {
+          setIsVerifying(true);
+          setIapError(null);
+          try {
+            logger.info('[IAP] Verifying iOS transaction with backend:', purchase.transactionId);
+            const response = await apiRequest<{ success: boolean; message?: string }>('/iap/apple/verify', {
+              method: 'POST',
+              body: {
+                transactionId: purchase.transactionId || purchase.id,
+                originalTransactionId: purchase.originalTransactionIdentifierIOS || purchase.transactionId || purchase.id,
+                productId: purchase.productId,
+                purchaseToken: purchase.purchaseToken,
+              },
+              auth: true,
+            });
+
+            if (response.success) {
+              logger.info('[IAP] Backend verification success, finishing transaction.');
+              setHasPaid(true);
+              await refetchUser();
+              await finishTransaction({ purchase, isConsumable: false });
+              logger.info('[IAP] Transaction finished.');
+            } else {
+              throw new Error(response.message || 'Transaction verification failed.');
+            }
+          } catch (err: any) {
+            logger.error('[IAP] Verification error:', err);
+            setIapError(err.message || 'Failed to verify transaction.');
+          } finally {
+            setIsVerifying(false);
+          }
+        }
+      });
+
+      errorSub = purchaseErrorListener((error) => {
+        logger.error('[IAP] Purchase error listener:', error);
+        if (error.code !== 'E_USER_CANCELLED' && error.code !== 'USER_CANCELLED') {
+          setIapError(error.message || 'StoreKit purchase error occurred.');
+        }
+      });
+    }
+
+    return () => {
+      appStateSub.remove();
+      if (updateSub) updateSub.remove();
+      if (errorSub) errorSub.remove();
+    };
   }, []);
 
   const logout = async () => {
@@ -79,7 +166,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, hasPaid, loading, setUser, setHasPaid, refetchUser, logout }}>
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated,
+      hasPaid,
+      loading,
+      isVerifying,
+      iapError,
+      clearIapError,
+      setUser,
+      setHasPaid,
+      refetchUser,
+      logout
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -136,13 +235,28 @@ export async function hasCompletedOnboarding(): Promise<boolean> {
   }
 }
 
+let cachedUserProfile: UserProfile | null = null;
+let lastCacheTime = 0;
+const CACHE_TTL = 30000; // 30 seconds
+
+export function clearUserProfileCache() {
+  cachedUserProfile = null;
+  lastCacheTime = 0;
+}
+
 /**
  * Fetch user profile from the backend
  */
-export async function getUserProfile(): Promise<UserProfile | null> {
+export async function getUserProfile(forceRefresh = false): Promise<UserProfile | null> {
+  const now = Date.now();
+  if (cachedUserProfile && !forceRefresh && (now - lastCacheTime < CACHE_TTL)) {
+    return cachedUserProfile;
+  }
   try {
     const response = await apiRequest<ProfileResponse>("/profile", { auth: true });
     if (response.success) {
+      cachedUserProfile = response.data;
+      lastCacheTime = now;
       return response.data;
     }
     return null;

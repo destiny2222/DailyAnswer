@@ -19,11 +19,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const Support = () => {
+  if (Platform.OS === 'ios') {
+    return null;
+  }
+
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const { isPlatformPaySupported, confirmPlatformPayPayment, confirmPlatformPaySetupIntent } = usePlatformPay();
   const [amount, setAmount] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
-  const [interval, setInterval] = useState < "monthly" | "yearly" > ("monthly");
+  const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
   const [isProcessing, setIsProcessing] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState({

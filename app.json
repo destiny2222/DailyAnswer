@@ -42,6 +42,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-iap",
       [
         "expo-splash-screen",
         {
@@ -67,7 +68,8 @@
             "allowBackup": false
           }
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

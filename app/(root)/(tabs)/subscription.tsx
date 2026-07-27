@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Platform,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -17,6 +18,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { usePlatformPay, PlatformPay } from "@stripe/stripe-react-native";
 import { apiRequest } from "@/utils/api";
+import { useAppleIAP } from "@/hooks/useAppleIAP";
 
 interface Plan {
   id: number;
@@ -27,7 +29,7 @@ interface Plan {
 }
 
 const Subscription = () => {
-  const { setHasPaid, hasPaid } = useGlobalContext();
+  const { setHasPaid, hasPaid, isVerifying, iapError: globalIapError, clearIapError } = useGlobalContext();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,10 +41,25 @@ const Subscription = () => {
     type: "success" as "success" | "error",
   });
 
-  const {isPlatformPaySupported, confirmPlatformPayPayment} = usePlatformPay();
+  // Stripe hooks safely scoped to Platform check
+  const stripe = Platform.OS === 'android' ? usePlatformPay() : { isPlatformPaySupported: async () => false, confirmPlatformPayPayment: async () => ({}) };
+  const { isPlatformPaySupported, confirmPlatformPayPayment } = stripe as any;
+
+  // StoreKit hook for iOS
+  const {
+    product: iapProduct,
+    loading: iapLoading,
+    error: iapError,
+    subscribe: iapSubscribe,
+    restore: iapRestore,
+  } = useAppleIAP();
 
   useEffect(() => {
     const fetchPlans = async () => {
+      if (Platform.OS === 'ios') {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         const response = await apiRequest<{ success: boolean; plans: Plan[] }>("/payment/plans", { auth: true });
@@ -68,11 +85,47 @@ const Subscription = () => {
     fetchPlans();
   }, []);
 
+  // Handle local & global IAP error notifications
+  useEffect(() => {
+    if (iapError) {
+      setAlertConfig({
+        title: "StoreKit Error",
+        message: iapError,
+        type: "error",
+      });
+      setAlertVisible(true);
+    }
+  }, [iapError]);
+
+  useEffect(() => {
+    if (globalIapError) {
+      setAlertConfig({
+        title: "Verification Error",
+        message: globalIapError,
+        type: "error",
+      });
+      setAlertVisible(true);
+      clearIapError();
+    }
+  }, [globalIapError, clearIapError]);
+
   const handleSelectPlan = (planId: string) => {
     setSelectedPlan(planId);
   };
 
   const handleSubscribe = async () => {
+    if (Platform.OS === 'ios') {
+      setIsSubscribing(true);
+      try {
+        await iapSubscribe();
+      } catch (e: any) {
+        // Error will be caught by hook or listeners
+      } finally {
+        setIsSubscribing(false);
+      }
+      return;
+    }
+
     if (!selectedPlan) {
       setAlertConfig({ title: "No Plan Selected", message: "Please select a subscription plan.", type: "error" });
       setAlertVisible(true);
@@ -85,7 +138,7 @@ const Subscription = () => {
     setIsSubscribing(true);
     try {
       if (!(await isPlatformPaySupported({ googlePay: { testEnv: true } }))) {
-        throw new Error("Apple Pay / Google Pay is not supported on this device.");
+        throw new Error("Google Pay is not supported on this device.");
       }
 
       // 1. Create PaymentIntent on backend
@@ -101,17 +154,6 @@ const Subscription = () => {
 
       // 2. Confirm with PlatformPay
       const { error, paymentIntent } = await confirmPlatformPayPayment(intentResponse.clientSecret, {
-        applePay: {
-          cartItems: [
-            {
-              label: plan.name,
-              amount: plan.price.toString(),
-              paymentType: PlatformPay.PaymentType.Immediate,
-            },
-          ],
-          merchantCountryCode: "US",
-          currencyCode: "USD",
-        },
         googlePay: {
           testEnv: true,
           merchantName: "Daily Answer",
@@ -208,11 +250,13 @@ const Subscription = () => {
     );
   }
 
-  if (loading) {
+  if (loading || isVerifying) {
     return (
       <SafeAreaView className="flex-1 bg-slate-900 justify-center items-center">
         <ActivityIndicator size="large" color="#E94B7B" />
-        <Text className="text-slate-400 mt-4">Loading plans...</Text>
+        <Text className="text-slate-400 mt-4">
+          {isVerifying ? "Verifying transaction with server..." : "Loading plans..."}
+        </Text>
       </SafeAreaView>
     )
   }
@@ -256,23 +300,39 @@ const Subscription = () => {
 
           {/* Plan Selection */}
           <View className="w-full mb-6">
-            {plans.map((plan) => (
-              <TouchableOpacity
-                key={plan.id}
-                onPress={() => handleSelectPlan(plan.id.toString())}
-                className={`border-2 rounded-xl p-4 mb-4 ${
-                  selectedPlan === plan.id.toString()
-                    ? "border-pink-500 bg-pink-500/10"
-                    : "border-slate-700"
-                }`}
-              >
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-white text-lg font-semibold">{plan.name}</Text>
-                  <Text className="text-white text-lg font-bold">${plan.price.toFixed(2)}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-            {plans.length === 0 && (
+            {Platform.OS === 'ios' ? (
+              iapProduct ? (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  className="border-2 rounded-xl p-4 mb-4 border-pink-500 bg-pink-500/10"
+                >
+                  <View className="flex-row justify-between items-center">
+                    <Text className="text-white text-lg font-semibold">Daily Answer Premium (Monthly)</Text>
+                    <Text className="text-white text-lg font-bold">{iapProduct.displayPrice}</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <Text className="text-slate-400 text-center">Loading subscription from App Store...</Text>
+              )
+            ) : (
+              plans.map((plan) => (
+                <TouchableOpacity
+                  key={plan.id}
+                  onPress={() => handleSelectPlan(plan.id.toString())}
+                  className={`border-2 rounded-xl p-4 mb-4 ${
+                    selectedPlan === plan.id.toString()
+                      ? "border-pink-500 bg-pink-500/10"
+                      : "border-slate-700"
+                  }`}
+                >
+                  <View className="flex-row justify-between items-center">
+                    <Text className="text-white text-lg font-semibold">{plan.name}</Text>
+                    <Text className="text-white text-lg font-bold">${plan.price.toFixed(2)}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+            {Platform.OS !== 'ios' && plans.length === 0 && (
               <Text className="text-slate-400 text-center">No subscription plans available.</Text>
             )}
           </View>
@@ -280,30 +340,49 @@ const Subscription = () => {
           {/* Subscribe Button */}
           <TouchableOpacity
             onPress={handleSubscribe}
-            disabled={isSubscribing || loading || plans.length === 0}
+            disabled={isSubscribing || iapLoading || loading || (Platform.OS !== 'ios' && plans.length === 0)}
             className="bg-pink-600 w-full py-4 rounded-xl items-center justify-center mb-6 opacity-90 disabled:opacity-50"
           >
-            {isSubscribing ? (
+            {isSubscribing || iapLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text className="text-white text-lg font-bold">
-                Subscribe 
+                Subscribe
               </Text>
             )}
           </TouchableOpacity>
 
+          {/* Restore Purchases (iOS only) */}
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              onPress={iapRestore}
+              disabled={isSubscribing || iapLoading || isVerifying}
+              className="border-2 border-slate-700 w-full py-4 rounded-xl items-center justify-center mb-6 opacity-90 disabled:opacity-50"
+            >
+              <Text className="text-white text-lg font-bold">
+                Restore Purchases
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {/* Legal */}
           <View className="items-center mb-6">
-            <TouchableOpacity onPress={() => Linking.openURL('#')}>
+            <TouchableOpacity onPress={() => Linking.openURL('https://thedailyanswer.com/terms')}>
               <Text className="text-slate-400 underline">Terms of Service</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => Linking.openURL('#')} className="mt-2">
+            <TouchableOpacity onPress={() => Linking.openURL('https://thedailyanswer.com/privacy')} className="mt-2">
               <Text className="text-slate-400 underline">Privacy Policy</Text>
             </TouchableOpacity>
           </View>
 
+          {Platform.OS === 'ios' && (
+            <Text className="text-slate-500 text-xs text-center mb-4 leading-relaxed">
+              Payment will be charged to your Apple ID. The subscription automatically renews unless canceled at least 24 hours before the end of the current billing period. You can manage or cancel your subscription in your Apple account settings.
+            </Text>
+          )}
+
           <Text className="text-slate-500 text-xs text-center">
-            Your Daily Answer membership will be billed in your local currency. Your payments will be processed securely via Stripe.
+            Your Daily Answer membership will be billed in your local currency. Your payments will be processed securely via {Platform.OS === 'ios' ? 'Apple StoreKit' : 'Stripe'}.
           </Text>
         </View>
       </ScrollView>

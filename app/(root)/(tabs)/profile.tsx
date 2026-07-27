@@ -167,10 +167,12 @@ const Profile = () => {
          
         <View className="flex flex-col mt-10">
           <SettingsItem icon={icons.person}  title="Profile" onPress={() => router.push('/edit_profile')}/>
-          {!hasPaid && (
+          {(Platform.OS === 'ios' || !hasPaid) && (
             <SettingsItem icon={icons.bell}  title='Subscription' onPress={() => router.push('/subscription')}/>
           )}
+          {Platform.OS !== 'ios' && (
             <SettingsItem icon={icons.dumbell} title='Donation' onPress={() => router.push('/ManageSupport')}/>
+          )}
           <SettingsItem icon={icons.language}  title="Memory Verse" onPress={() => router.push('/memory')} />
           <SettingsItem icon={icons.star}  title="Bookmark" onPress={() => router.push('/saved_devotionals')} />
           <SettingsItem icon={icons.file}  title="Notes" onPress={() => router.push('/note')} />

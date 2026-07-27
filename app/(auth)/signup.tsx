@@ -76,7 +76,7 @@ const SignUp = () => {
   const handleSignUp = async () => {
     
 
-    if (!fullName || !email || !phone || !password || !confirmPassword) {
+    if (!fullName || !email || !password || !confirmPassword) {
       setAlertConfig({
         title: "Validation Error",
         message: "Please fill in all fields",
@@ -124,7 +124,7 @@ const SignUp = () => {
         body: {
           name: fullName,
           email,
-          phone,
+          phone: phone || null,
           username,
           password,
           password_confirmation: confirmPassword,

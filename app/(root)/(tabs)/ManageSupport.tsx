@@ -12,6 +12,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -27,6 +28,10 @@ interface RecurringSupport {
 }
 
 const ManageSupport = () => {
+  if (Platform.OS === 'ios') {
+    return null;
+  }
+
   // In a real app, fetch this data from your API
   const [supports, setSupports] = useState < RecurringSupport[] > ([]);
   // Track loading state per subscription
