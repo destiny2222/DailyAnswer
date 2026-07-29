@@ -4,6 +4,7 @@ import React from 'react';
 import {
     Dimensions,
     Modal,
+    Platform,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -53,7 +54,9 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ visible, onClose 
 
             <Text style={styles.title}>Premium Content</Text>
             <Text style={styles.description}>
-              This devotional is available to premium subscribers only. Subscribe now to access thousands of devotionals.
+              {Platform.OS === 'ios' 
+                ? 'This devotional is available to premium subscribers only. To subscribe, please visit thedailyanswer.org on your web browser, then sign in here with your subscription account.'
+                : 'This devotional is available to premium subscribers only. Subscribe now to access thousands of devotionals.'}
             </Text>
 
             <View style={styles.featuresContainer}>
@@ -75,13 +78,15 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ visible, onClose 
               </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.subscribeButton}
-              onPress={handleSubscribe}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
-            </TouchableOpacity>
+            {Platform.OS !== 'ios' && (
+              <TouchableOpacity
+                style={styles.subscribeButton}
+                onPress={handleSubscribe}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={styles.cancelButton}

@@ -1,22 +1,23 @@
 import logoImage from "@/assets/images/logo.jpeg";
 import CustomAlert from "@/components/CustomAlert";
-import { useGlobalContext } from "@/utils/auth";
+import { apiRequest } from "@/utils/api";
+import { getUserProfile, useGlobalContext } from "@/utils/auth";
 import { Ionicons } from "@expo/vector-icons";
+import { PlatformPay, usePlatformPay } from "@stripe/stripe-react-native";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  Linking,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    Linking,
+    Platform,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { usePlatformPay, PlatformPay } from "@stripe/stripe-react-native";
-import { apiRequest } from "@/utils/api";
 
 interface Plan {
   id: number;
@@ -32,6 +33,7 @@ const Subscription = () => {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [isRestoringAccess, setIsRestoringAccess] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState({
     title: "",
@@ -42,7 +44,20 @@ const Subscription = () => {
   const {isPlatformPaySupported, confirmPlatformPayPayment} = usePlatformPay();
 
   useEffect(() => {
+    if (Platform.OS === "ios") {
+      // Subscription management not available on iOS per App Store guidelines
+      router.replace("/(root)/(tabs)");
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchPlans = async () => {
+      if (Platform.OS === "ios") {
+        setPlans([]);
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         const response = await apiRequest<{ success: boolean; plans: Plan[] }>("/payment/plans", { auth: true });
@@ -53,7 +68,7 @@ const Subscription = () => {
             setSelectedPlan(response.plans[0].id.toString());
           }
         }
-      } catch (e) {
+      } catch {
         setAlertConfig({
           title: "Error",
           message: "Failed to load subscription plans.",
@@ -70,6 +85,46 @@ const Subscription = () => {
 
   const handleSelectPlan = (planId: string) => {
     setSelectedPlan(planId);
+  };
+
+  const handleRestoreAccess = async () => {
+    if (Platform.OS !== "ios") {
+      return;
+    }
+
+    setIsRestoringAccess(true);
+    try {
+      const profile = await getUserProfile();
+
+      if (profile?.has_paid) {
+        setHasPaid(true);
+        setAlertConfig({
+          title: "Access Restored",
+          message: "Your subscription is active.",
+          type: "success",
+        });
+        setAlertVisible(true);
+        router.replace('/(root)/(tabs)');
+        return;
+      }
+
+      setAlertConfig({
+        title: "Sign In Required",
+        message: "Sign in with the account used for your subscription to restore access.",
+        type: "error",
+      });
+      setAlertVisible(true);
+      router.push("/(auth)/login");
+    } catch (error: any) {
+      setAlertConfig({
+        title: "Restore Failed",
+        message: error?.message || "Unable to check your subscription right now.",
+        type: "error",
+      });
+      setAlertVisible(true);
+    } finally {
+      setIsRestoringAccess(false);
+    }
   };
 
   const handleSubscribe = async () => {
@@ -122,6 +177,10 @@ const Subscription = () => {
 
       if (error) {
         throw new Error(error.message || "Payment was not successful.");
+      }
+
+      if (!paymentIntent?.id) {
+        throw new Error("Payment was not successful.");
       }
 
       // 3. Confirm with backend
@@ -240,70 +299,101 @@ const Subscription = () => {
             Get Full Access
           </Text>
           <Text className="text-slate-400 text-base text-center mb-8">
-            Subscribe to get full access to all devotional contents on The Daily
-            Answer.
+            {Platform.OS === "ios"
+              ? "Sign in with the account you used before to restore your subscription access."
+              : "Subscribe to get full access to all devotional contents on The Daily Answer."}
           </Text>
 
-          {/* Features */}
-          <View className="w-full mb-8">
-            {features.map((feature, index) => (
-              <View key={index} className="flex-row items-center mb-3">
+          {Platform.OS === "ios" ? (
+            <View className="w-full mb-8">
+              <View className="flex-row items-center mb-3">
                 <Ionicons name="checkmark-circle" size={24} color="#E94B7B" />
-                <Text className="text-slate-300 text-base ml-3">{feature}</Text>
+                <Text className="text-slate-300 text-base ml-3">Sign in to your account</Text>
               </View>
-            ))}
-          </View>
+              <View className="flex-row items-center mb-3">
+                <Ionicons name="checkmark-circle" size={24} color="#E94B7B" />
+                <Text className="text-slate-300 text-base ml-3">Restore your active access</Text>
+              </View>
+              <View className="flex-row items-center mb-3">
+                <Ionicons name="checkmark-circle" size={24} color="#E94B7B" />
+                <Text className="text-slate-300 text-base ml-3">Continue reading in the app</Text>
+              </View>
+            </View>
+          ) : (
+            <>
+              {/* Features */}
+              <View className="w-full mb-8">
+                {features.map((feature, index) => (
+                  <View key={index} className="flex-row items-center mb-3">
+                    <Ionicons name="checkmark-circle" size={24} color="#E94B7B" />
+                    <Text className="text-slate-300 text-base ml-3">{feature}</Text>
+                  </View>
+                ))}
+              </View>
 
-          {/* Plan Selection */}
-          <View className="w-full mb-6">
-            {plans.map((plan) => (
-              <TouchableOpacity
-                key={plan.id}
-                onPress={() => handleSelectPlan(plan.id.toString())}
-                className={`border-2 rounded-xl p-4 mb-4 ${
-                  selectedPlan === plan.id.toString()
-                    ? "border-pink-500 bg-pink-500/10"
-                    : "border-slate-700"
-                }`}
-              >
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-white text-lg font-semibold">{plan.name}</Text>
-                  <Text className="text-white text-lg font-bold">${plan.price.toFixed(2)}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-            {plans.length === 0 && (
-              <Text className="text-slate-400 text-center">No subscription plans available.</Text>
-            )}
-          </View>
+              {/* Plan Selection */}
+              <View className="w-full mb-6">
+                {plans.map((plan) => (
+                  <TouchableOpacity
+                    key={plan.id}
+                    onPress={() => handleSelectPlan(plan.id.toString())}
+                    className={`border-2 rounded-xl p-4 mb-4 ${
+                      selectedPlan === plan.id.toString()
+                        ? "border-pink-500 bg-pink-500/10"
+                        : "border-slate-700"
+                    }`}
+                  >
+                    <View className="flex-row justify-between items-center">
+                      <Text className="text-white text-lg font-semibold">{plan.name}</Text>
+                      <Text className="text-white text-lg font-bold">${plan.price.toFixed(2)}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                {plans.length === 0 && (
+                  <Text className="text-slate-400 text-center">No subscription plans available.</Text>
+                )}
+              </View>
+            </>
+          )}
 
-          {/* Subscribe Button */}
           <TouchableOpacity
-            onPress={handleSubscribe}
-            disabled={isSubscribing || loading || plans.length === 0}
+            onPress={Platform.OS === "ios" ? handleRestoreAccess : handleSubscribe}
+            disabled={Platform.OS === "ios" ? isRestoringAccess : isSubscribing || loading || plans.length === 0}
             className="bg-pink-600 w-full py-4 rounded-xl items-center justify-center mb-6 opacity-90 disabled:opacity-50"
           >
-            {isSubscribing ? (
+            {Platform.OS === "ios" ? (
+              isRestoringAccess ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-white text-lg font-bold">
+                  Sign In / Restore Access
+                </Text>
+              )
+            ) : isSubscribing ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text className="text-white text-lg font-bold">
-                Subscribe 
+                Subscribe
               </Text>
             )}
           </TouchableOpacity>
 
           {/* Legal */}
-          <View className="items-center mb-6">
-            <TouchableOpacity onPress={() => Linking.openURL('#')}>
-              <Text className="text-slate-400 underline">Terms of Service</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => Linking.openURL('#')} className="mt-2">
-              <Text className="text-slate-400 underline">Privacy Policy</Text>
-            </TouchableOpacity>
-          </View>
+          {Platform.OS !== "ios" && (
+            <View className="items-center mb-6">
+              <TouchableOpacity onPress={() => Linking.openURL('#')}>
+                <Text className="text-slate-400 underline">Terms of Service</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => Linking.openURL('#')} className="mt-2">
+                <Text className="text-slate-400 underline">Privacy Policy</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <Text className="text-slate-500 text-xs text-center">
-            Your Daily Answer membership will be billed in your local currency. Your payments will be processed securely via Stripe.
+            {Platform.OS === "ios"
+              ? "On iOS, this screen is for restoring access after sign in."
+              : "Your Daily Answer membership will be billed in your local currency. Your payments will be processed securely via Stripe."}
           </Text>
         </View>
       </ScrollView>

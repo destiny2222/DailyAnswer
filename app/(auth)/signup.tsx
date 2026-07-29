@@ -76,10 +76,10 @@ const SignUp = () => {
   const handleSignUp = async () => {
     
 
-    if (!fullName || !email || !phone || !password || !confirmPassword) {
+    if (!fullName || !email || !password || !confirmPassword) {
       setAlertConfig({
         title: "Validation Error",
-        message: "Please fill in all fields",
+        message: "Please fill in all required fields",
         type: "error",
       });
       setAlertVisible(true);
@@ -359,7 +359,7 @@ const SignUp = () => {
                 {/* Phone Input */}
                 <View className="mb-4">
                   <Text className="text-white/80 text-sm font-semibold mb-2">
-                    Phone Number
+                    Phone Number (Optional)
                   </Text>
                   <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
                     <Ionicons name="call-outline" size={20} color="#9CA3AF" />
