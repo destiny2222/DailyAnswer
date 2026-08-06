@@ -167,10 +167,10 @@ const Profile = () => {
          
         <View className="flex flex-col mt-10">
           <SettingsItem icon={icons.person}  title="Profile" onPress={() => router.push('/edit_profile')}/>
-          {Platform.OS !== 'ios' && !hasPaid && (
+          {Platform.OS !== 'ios'  && (
             <SettingsItem icon={icons.bell}  title='Subscription' onPress={() => router.push('/subscription')}/>
           )}
-          {Platform.OS === 'ios' && !hasPaid && (
+          {Platform.OS !== 'ios' && !hasPaid && (
             <SettingsItem 
               icon={icons.bell} 
               title='Subscription' 
