@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from "expo-secure-store";
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, Text, TouchableOpacity, View, Platform } from 'react-native';
+import { Alert, Image, ImageSourcePropType, ScrollView, Text, TouchableOpacity, View, Platform } from 'react-native';
 import { apiEndpoint } from '../../../utils/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isAuthenticated, useGlobalContext } from '../../../utils/auth';
@@ -166,34 +166,10 @@ const Profile = () => {
         </View>
          
         <View className="flex flex-col mt-10">
-          <SettingsItem icon={icons.person}  title="Profile" onPress={() => router.push('/edit_profile')}/>
-          {Platform.OS !== 'ios'  && (
-            <SettingsItem icon={icons.bell}  title='Subscription' onPress={() => router.push('/subscription')}/>
-          )}
-          {Platform.OS !== 'ios' && !hasPaid && (
-            <SettingsItem 
-              icon={icons.bell} 
-              title='Subscription' 
-              onPress={() => Alert.alert(
-                'Subscription',
-                'To subscribe and access premium content, please visit thedailyanswer.org on your web browser.',
-                [{ text: 'OK' }]
-              )}
-            />
-          )}
+          <SettingsItem icon={icons.person} title="Profile" onPress={() => router.push('/edit_profile')}/>
+          <SettingsItem icon={icons.bell} title="Subscription" onPress={() => router.push('/subscription')}/>
           {Platform.OS !== 'ios' && (
-            <SettingsItem icon={icons.dumbell} title='Donation' onPress={() => router.push('/ManageSupport')}/>
-          )}
-          {Platform.OS === 'ios' && (
-            <SettingsItem 
-              icon={icons.dumbell} 
-              title='Support Us' 
-              onPress={() => Alert.alert(
-                'Support The Daily Answer',
-                'To make a donation and support our mission, please visit thedailyanswer.org on your web browser.',
-                [{ text: 'OK' }]
-              )}
-            />
+            <SettingsItem icon={icons.dumbell} title="Donation" onPress={() => router.push('/ManageSupport')}/>
           )}
           <SettingsItem icon={icons.language}  title="Memory Verse" onPress={() => router.push('/memory')} />
           <SettingsItem icon={icons.star}  title="Bookmark" onPress={() => router.push('/saved_devotionals')} />

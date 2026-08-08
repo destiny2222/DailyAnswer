@@ -54,9 +54,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ visible, onClose 
 
             <Text style={styles.title}>Premium Content</Text>
             <Text style={styles.description}>
-              {Platform.OS === 'ios' 
-                ? 'This devotional is available to premium subscribers only. To subscribe, please visit thedailyanswer.org on your web browser, then sign in here with your subscription account.'
-                : 'This devotional is available to premium subscribers only. Subscribe now to access thousands of devotionals.'}
+              This devotional is available to premium subscribers only. Subscribe now to access thousands of devotionals.
             </Text>
 
             <View style={styles.featuresContainer}>
@@ -78,15 +76,13 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ visible, onClose 
               </View>
             </View>
 
-            {Platform.OS !== 'ios' && (
-              <TouchableOpacity
-                style={styles.subscribeButton}
-                onPress={handleSubscribe}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.subscribeButton}
+              onPress={handleSubscribe}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.cancelButton}
