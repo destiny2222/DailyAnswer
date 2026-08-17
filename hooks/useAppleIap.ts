@@ -17,26 +17,24 @@ import {
 import { apiRequest } from "@/utils/api";
 import { useGlobalContext } from "@/utils/auth";
 
+export const PRODUCT_ID_3MONTHS = "com.thedailyanswer.threemonths";
 export const PRODUCT_ID_MONTHLY = "com.thedailyanswer.monthly.subscription";
 export const PRODUCT_ID_YEARLY = "com.thedailyanswer.yearly";
 
-const SKUS = [PRODUCT_ID_MONTHLY, PRODUCT_ID_YEARLY];
+const SKUS = [PRODUCT_ID_3MONTHS];
 
 export interface AppleIapState {
-  monthlyProduct: ProductSubscription | null;
-  yearlyProduct: ProductSubscription | null;
+  threeMonthsProduct: ProductSubscription | null;
   isLoading: boolean;
   isProcessing: boolean;
-  purchaseMonthly: () => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
-  purchaseYearly: () => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
+  purchaseThreeMonths: () => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
   restorePurchases: () => Promise<{ success: boolean; restored: boolean; error?: string }>;
   refreshProducts: () => Promise<void>;
 }
 
 export const useAppleIap = (): AppleIapState => {
   const { refetchUser, setHasPaid } = useGlobalContext();
-  const [monthlyProduct, setMonthlyProduct] = useState<ProductSubscription | null>(null);
-  const [yearlyProduct, setYearlyProduct] = useState<ProductSubscription | null>(null);
+  const [threeMonthsProduct, setThreeMonthsProduct] = useState<ProductSubscription | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
@@ -54,11 +52,9 @@ export const useAppleIap = (): AppleIapState => {
       const subs = products as ProductSubscription[];
 
       // expo-iap uses `product.id` (not `productId`) to identify a product
-      const monthly = subs.find((p) => p.id === PRODUCT_ID_MONTHLY) ?? null;
-      const yearly = subs.find((p) => p.id === PRODUCT_ID_YEARLY) ?? null;
+      const threeMonths = subs.find((p) => p.id === PRODUCT_ID_3MONTHS) ?? null;
 
-      setMonthlyProduct(monthly);
-      setYearlyProduct(yearly);
+      setThreeMonthsProduct(threeMonths);
     } catch (err) {
       console.warn("[Apple IAP] Error fetching subscriptions:", err);
     } finally {
@@ -189,12 +185,8 @@ export const useAppleIap = (): AppleIapState => {
     });
   };
 
-  const purchaseMonthly = useCallback(async () => {
-    return requestPurchaseInternal(PRODUCT_ID_MONTHLY);
-  }, []);
-
-  const purchaseYearly = useCallback(async () => {
-    return requestPurchaseInternal(PRODUCT_ID_YEARLY);
+  const purchaseThreeMonths = useCallback(async () => {
+    return requestPurchaseInternal(PRODUCT_ID_3MONTHS);
   }, []);
 
   const restorePurchases = useCallback(async (): Promise<{
@@ -209,7 +201,10 @@ export const useAppleIap = (): AppleIapState => {
       });
 
       const activeIap = purchases.find(
-        (p) => p.productId === PRODUCT_ID_MONTHLY || p.productId === PRODUCT_ID_YEARLY
+        (p) =>
+          p.productId === PRODUCT_ID_3MONTHS ||
+          p.productId === PRODUCT_ID_MONTHLY ||
+          p.productId === PRODUCT_ID_YEARLY
       );
 
       if (activeIap) {
@@ -261,12 +256,10 @@ export const useAppleIap = (): AppleIapState => {
   }, [refetchUser, setHasPaid]);
 
   return {
-    monthlyProduct,
-    yearlyProduct,
+    threeMonthsProduct,
     isLoading,
     isProcessing,
-    purchaseMonthly,
-    purchaseYearly,
+    purchaseThreeMonths,
     restorePurchases,
     refreshProducts: loadProducts,
   };

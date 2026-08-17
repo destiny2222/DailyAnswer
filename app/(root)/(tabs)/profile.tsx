@@ -4,10 +4,11 @@ import { useRouter } from 'expo-router';
 import * as SecureStore from "expo-secure-store";
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, ImageSourcePropType, ScrollView, Text, TouchableOpacity, View, Platform } from 'react-native';
-import { apiEndpoint } from '../../../utils/api';
+import { apiEndpoint, ApiError } from '../../../utils/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isAuthenticated, useGlobalContext } from '../../../utils/auth';
 import { StatusBar } from 'expo-status-bar';
+import CustomAlert from '@/components/CustomAlert';
 
 interface SettingsItemProps {
   icon: ImageSourcePropType;
@@ -45,6 +46,28 @@ const Profile = () => {
   const [authenticated, setAuthenticated] = useState(false);
   const { user, setUser, hasPaid } = useGlobalContext();
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'success' | 'error'>('success');
+  const alertOnCloseRef = React.useRef<(() => void) | null>(null);
+
+  const showAlert = (title: string, message: string, type: 'success' | 'error', onClose?: () => void) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertType(type);
+    alertOnCloseRef.current = onClose || null;
+    setAlertVisible(true);
+  };
+
+  const handleAlertClose = () => {
+    setAlertVisible(false);
+    if (alertOnCloseRef.current) {
+      alertOnCloseRef.current();
+      alertOnCloseRef.current = null;
+    }
+  };
   
     useEffect(() => {
       if (user) {
@@ -85,12 +108,17 @@ const Profile = () => {
           style: "destructive",
           onPress: async () => {
             try {
-              await apiEndpoint("v1/profile/delete", { method: "DELETE" });
+              await apiEndpoint("/profile/delete", { method: "DELETE" });
               await SecureStore.deleteItemAsync("access_token");
               setUser(null);
-              router.replace("/(auth)/login");
+              
+              showAlert("Success", "Your account has been deleted successfully.", "success", () => {
+                router.replace("/(auth)/login");
+              });
             } catch (error) {
-              Alert.alert("Error", "Failed to delete account. Please try again later.");
+              console.log("delete: ", error);
+              const errMsg = ApiError.getMessage(error);
+              showAlert("Error", errMsg || "Failed to delete account. Please try again later.", "error");
             }
           },
         },
@@ -189,6 +217,13 @@ const Profile = () => {
         </View>
       </View>
       </ScrollView>
+      <CustomAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        onClose={handleAlertClose}
+      />
     </SafeAreaView>
   );
 };

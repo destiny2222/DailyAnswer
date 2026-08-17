@@ -19,16 +19,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const SubscriptionTab = () => {
   const { hasPaid } = useGlobalContext();
   const {
-    monthlyProduct,
-    yearlyProduct,
+    threeMonthsProduct,
     isLoading: isIapLoading,
     isProcessing,
-    purchaseMonthly,
-    purchaseYearly,
+    purchaseThreeMonths,
     restorePurchases,
   } = useAppleIap();
 
-  const [purchasingPlan, setPurchasingPlan] = useState<"monthly" | "yearly" | null>(null);
+  const [purchasingPlan, setPurchasingPlan] = useState<"threemonths" | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
 
   const [alertVisible, setAlertVisible] = useState(false);
@@ -38,49 +36,12 @@ const SubscriptionTab = () => {
     type: "success" as "success" | "error",
   });
 
-  const handlePurchaseMonthly = async () => {
+  const handlePurchaseThreeMonths = async () => {
     if (purchasingPlan || isRestoring || isProcessing) return;
-    setPurchasingPlan("monthly");
+    setPurchasingPlan("threemonths");
 
     try {
-      const result = await purchaseMonthly();
-
-      if (result.success) {
-        setAlertConfig({
-          title: "Subscription Active! 🎉",
-          message: "Welcome to Daily Answer Premium! Full access to all devotional content is unlocked.",
-          type: "success",
-        });
-        setAlertVisible(true);
-        setTimeout(() => {
-          router.replace("/(root)/(tabs)");
-        }, 2000);
-      } else if (!result.cancelled && result.error) {
-        setAlertConfig({
-          title: "Subscription Error",
-          message: result.error,
-          type: "error",
-        });
-        setAlertVisible(true);
-      }
-    } catch (e: any) {
-      setAlertConfig({
-        title: "Subscription Error",
-        message: e?.message || "An unexpected error occurred. Please try again.",
-        type: "error",
-      });
-      setAlertVisible(true);
-    } finally {
-      setPurchasingPlan(null);
-    }
-  };
-
-  const handlePurchaseYearly = async () => {
-    if (purchasingPlan || isRestoring || isProcessing) return;
-    setPurchasingPlan("yearly");
-
-    try {
-      const result = await purchaseYearly();
+      const result = await purchaseThreeMonths();
 
       if (result.success) {
         setAlertConfig({
@@ -156,8 +117,7 @@ const SubscriptionTab = () => {
     }
   };
 
-  const monthlyPriceString = monthlyProduct?.displayPrice || "$4.99";
-  const yearlyPriceString = yearlyProduct?.displayPrice || "$29.99";
+  const threeMonthsPriceString = threeMonthsProduct?.displayPrice || "$99.99";
 
   const isBusy = purchasingPlan !== null || isRestoring || isProcessing;
 
@@ -262,54 +222,30 @@ const SubscriptionTab = () => {
           </View>
 
           {/* Subscription Plans */}
-          <View className="w-full mb-6 gap-4">
-            {/* Monthly Card */}
-            <View className="bg-slate-800 border-2 border-slate-700 rounded-2xl p-5">
-              <View className="flex-row justify-between items-center mb-3">
-                <View>
-                  <Text className="text-white text-xl font-bold">Monthly</Text>
-                  <Text className="text-slate-400 text-sm mt-1">Full monthly access</Text>
-                </View>
-                <Text className="text-pink-400 text-xl font-bold">
-                  {monthlyPriceString} / month
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={handlePurchaseMonthly}
-                disabled={isBusy}
-                className="bg-pink-600 w-full py-3.5 rounded-xl items-center justify-center mt-2 active:bg-pink-700 disabled:opacity-50"
-              >
-                {purchasingPlan === "monthly" ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text className="text-white text-base font-bold">Subscribe Monthly</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Yearly Card */}
+          <View className="w-full mb-6">
+            {/* Quarterly Card */}
             <View className="bg-slate-800 border-2 border-pink-500/50 rounded-2xl p-5 relative overflow-hidden">
               <View className="absolute top-0 right-0 bg-pink-600 px-3 py-1 rounded-bl-xl">
-                <Text className="text-white text-xs font-bold uppercase tracking-wider">Best Value</Text>
+                <Text className="text-white text-xs font-bold uppercase tracking-wider">Recommended Plan</Text>
               </View>
               <View className="flex-row justify-between items-center mb-3 mt-1">
                 <View>
-                  <Text className="text-white text-xl font-bold">Yearly</Text>
-                  <Text className="text-slate-400 text-sm mt-1">12 months access</Text>
+                  <Text className="text-white text-xl font-bold">Quarterly</Text>
+                  <Text className="text-slate-400 text-sm mt-1">Full 3-month access</Text>
                 </View>
                 <Text className="text-pink-400 text-xl font-bold">
-                  {yearlyPriceString} / year
+                  {threeMonthsPriceString} / 3 months
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={handlePurchaseYearly}
+                onPress={handlePurchaseThreeMonths}
                 disabled={isBusy}
                 className="bg-pink-600 w-full py-3.5 rounded-xl items-center justify-center mt-2 active:bg-pink-700 disabled:opacity-50"
               >
-                {purchasingPlan === "yearly" ? (
+                {purchasingPlan === "threemonths" ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text className="text-white text-base font-bold">Subscribe Yearly</Text>
+                  <Text className="text-white text-base font-bold">Subscribe Now</Text>
                 )}
               </TouchableOpacity>
             </View>

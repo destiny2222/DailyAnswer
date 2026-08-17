@@ -12,7 +12,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.thedailyanswer",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "The Daily Answer requires access to your photo library to let you choose and upload a profile picture."
       }
     },
     "android": {
