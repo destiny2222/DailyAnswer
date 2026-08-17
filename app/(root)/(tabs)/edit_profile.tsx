@@ -149,7 +149,7 @@ const handleImageUpload = async (uri: string) => {
         method: 'PUT',
         body: {
           name,
-          username,
+          username:"username",
           email,
         },
       });
@@ -259,6 +259,15 @@ const handleImageUpload = async (uri: string) => {
             placeholderTextColor="#9CA3AF"
           />
         </View>
+        <View className='hidden'>
+          <TextInput
+            value={username}
+            onChangeText={setUsername}
+            className="p-3 bg-gray-800 border border-gray-700 rounded-lg text-white"
+            placeholder="Enter your username"
+            placeholderTextColor="#9CA3AF"
+          />
+        </View>
         <View className="mb-6">
           <Text className="text-sm font-medium text-gray-300 mb-1">Email</Text>
           <TextInput
@@ -269,6 +278,7 @@ const handleImageUpload = async (uri: string) => {
             placeholderTextColor="#9CA3AF"
             keyboardType="email-address"
             autoCapitalize="none"
+            editable={false}
           />
         </View>
 
