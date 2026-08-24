@@ -12,7 +12,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.thedailyanswer",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "The Daily Answer requires access to your photo library to let you choose and upload a profile picture."
       }
     },
     "android": {
@@ -29,7 +30,9 @@
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "package": "com.thedailyanswer"
     },
@@ -65,7 +68,8 @@
             "allowBackup": false
           }
         }
-      ]
+      ],
+      "expo-iap"
     ],
     "experiments": {
       "typedRoutes": true,

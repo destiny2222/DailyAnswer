@@ -4,6 +4,7 @@ import React from 'react';
 import {
     Dimensions,
     Modal,
+    Platform,
     StyleSheet,
     Text,
     TouchableOpacity,

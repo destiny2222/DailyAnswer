@@ -1,184 +1,176 @@
 import logoImage from "@/assets/images/logo.jpeg";
 import CustomAlert from "@/components/CustomAlert";
-import { confirmPayment, createSubscription, getSubscriptionPlans, Plan } from "@/libs/payment";
+import { useAppleIap } from "@/hooks/useAppleIap";
 import { useGlobalContext } from "@/utils/auth";
 import { Ionicons } from "@expo/vector-icons";
-import { useStripe } from "@stripe/stripe-react-native";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  Linking,
   ScrollView,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const Subscription = () => {
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const { setHasPaid } = useGlobalContext();
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isSubscribing, setIsSubscribing] = useState(false);
+const SubscriptionTab = () => {
+  const { hasPaid } = useGlobalContext();
+  const {
+    threeMonthsProduct,
+    isLoading: isIapLoading,
+    isProcessing,
+    purchaseThreeMonths,
+    restorePurchases,
+  } = useAppleIap();
+
+  const [purchasingPlan, setPurchasingPlan] = useState<"threemonths" | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
   const [alertVisible, setAlertVisible] = useState(false);
-    const [alertConfig, setAlertConfig] = useState({
-      title: "",
-      message: "",
-      type: "success" as "success" | "error",
-    });
+  const [alertConfig, setAlertConfig] = useState({
+    title: "",
+    message: "",
+    type: "success" as "success" | "error",
+  });
 
-  useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        setLoading(true);
-        const availablePlans = await getSubscriptionPlans();
-        
-        setPlans(availablePlans);
-        if (availablePlans.length > 0) {
-          // default to plan_standard_quarterly
-          const defaultPlan = availablePlans.find(p => p.plan_id === 'plan_standard_quarterly') || availablePlans[0];
-          setSelectedPlan(defaultPlan.id);
-        }
-      } catch (e) {
-        setAlertConfig({
-          title: "Error",
-          message: "Failed to load subscription plans.",
-          type: "error",
-        });
-        setAlertVisible(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPlans();
-  }, []);
+  const handlePurchaseThreeMonths = async () => {
+    if (purchasingPlan || isRestoring || isProcessing) return;
+    setPurchasingPlan("threemonths");
 
-  const handleSelectPlan = (planId: string) => {
-    setSelectedPlan(planId);
-  };
-
-  const handleSubscribe = async () => {
-    if (!selectedPlan) {
-      setAlertConfig({
-        title: "No Plan Selected",
-        message: "Please select a subscription plan.",
-        type: "error",
-      });
-      setAlertVisible(true);
-      //
-      return;
-    }
-
-    setIsSubscribing(true);
     try {
-      const { clientSecret, customerId } = await createSubscription(selectedPlan);
-      
-      const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: "The Daily Answer",
-        customerId: customerId,
-        paymentIntentClientSecret: clientSecret,
-        allowsDelayedPaymentMethods: false,
-      });
-      
-      if (initError) {
+      const result = await purchaseThreeMonths();
+
+      if (result.success) {
         setAlertConfig({
-          title: "Error",
-          message: "Failed to initialize payment sheet.",
+          title: "Subscription Active! 🎉",
+          message: "Welcome to Daily Answer Premium! Full access to all devotional content is unlocked.",
+          type: "success",
+        });
+        setAlertVisible(true);
+        setTimeout(() => {
+          router.replace("/(root)/(tabs)");
+        }, 2000);
+      } else if (!result.cancelled && result.error) {
+        setAlertConfig({
+          title: "Subscription Error",
+          message: result.error,
           type: "error",
         });
         setAlertVisible(true);
-        setIsSubscribing(false);
-        return;
-      }
-
-      const { error: presentError } = await presentPaymentSheet();
-      if (presentError) {
-        // logger.error("Present Error:", presentError);
-        if (presentError.code !== 'Canceled') {
-          setAlertConfig({
-            title: "Payment Error",
-            message: presentError.message,
-            type: "error",
-          });
-          setAlertVisible(true);
-        }
-      } else {
-        // Extract paymentIntentId from clientSecret
-        const paymentIntentId = clientSecret.split('_secret')[0];
-        
-        // Confirm payment on the backend
-        const confirmation = await confirmPayment(paymentIntentId);
-
-        if (confirmation.success) {
-          setHasPaid(true);
-          
-          // Show success alert
-          setAlertConfig({
-            title: "Payment Successful! 🎉",
-            message: "Your subscription is now active. Enjoy full access to all premium features!",
-            type: "success",
-          });
-          setAlertVisible(true);
-          // Redirect after a brief delay to allow user to see the success message
-          setTimeout(() => {
-            router.replace('/(root)/(tabs)');
-          }, 2000);
-        } else {
-          setAlertConfig({
-            title: "Confirmation Failed",
-            message: confirmation.message || "Could not activate your subscription.",
-            type: "error",
-          });
-          setAlertVisible(true);
-        }
       }
     } catch (e: any) {
-      // logger.error("Subscription error:", e);
       setAlertConfig({
         title: "Subscription Error",
-        message: e.message || "An unexpected error occurred.",
+        message: e?.message || "An unexpected error occurred. Please try again.",
         type: "error",
       });
       setAlertVisible(true);
     } finally {
-      setIsSubscribing(false);
+      setPurchasingPlan(null);
     }
   };
 
-  // const handleRestorePurchases = async () => {
-  //   setIsRestoring(true);
-  //   setError(null);
-  //   // Simulate API call
-  //   await new Promise((resolve) => setTimeout(resolve, 2000));
-  //   setAlertConfig({
-  //     title: "Restoration Complete",
-  //     message: "Your purchases have been restored successfully.",
-  //     type: "error"
-  //   });
-  //   setAlertVisible(true);
-  //   setIsRestoring(false);
-  // };
+  const handleRestore = async () => {
+    if (purchasingPlan || isRestoring || isProcessing) return;
+    setIsRestoring(true);
 
-  const features = [
-    "Support quality writing",
-    "Read devotionals offline in the app",
-    "Listen to any devotional",
-  ];
+    try {
+      const result = await restorePurchases();
 
-  if (loading) {
+      if (result.success && result.restored) {
+        setAlertConfig({
+          title: "Purchases Restored",
+          message: "Your active Daily Answer Premium subscription has been successfully restored.",
+          type: "success",
+        });
+        setAlertVisible(true);
+        setTimeout(() => {
+          router.replace("/(root)/(tabs)");
+        }, 2000);
+      } else if (result.success && !result.restored) {
+        setAlertConfig({
+          title: "No Active Subscription",
+          message: "No active premium subscription was found for this Apple ID account.",
+          type: "error",
+        });
+        setAlertVisible(true);
+      } else if (result.error) {
+        setAlertConfig({
+          title: "Restore Failed",
+          message: result.error,
+          type: "error",
+        });
+        setAlertVisible(true);
+      }
+    } catch (e: any) {
+      setAlertConfig({
+        title: "Restore Failed",
+        message: e?.message || "Unable to restore purchases at this time.",
+        type: "error",
+      });
+      setAlertVisible(true);
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  const threeMonthsPriceString = threeMonthsProduct?.displayPrice || "$99.99";
+
+  const isBusy = purchasingPlan !== null || isRestoring || isProcessing;
+
+  if (hasPaid) {
+    return (
+      <SafeAreaView className="flex-1 bg-slate-900">
+        <StatusBar style="light" />
+        <View className="flex-row items-center px-4 py-4 border-b border-slate-800">
+          <TouchableOpacity
+            onPress={() => router.replace("/profile")}
+            className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text className="flex-1 text-center text-xl font-bold text-white">
+            Daily Answer Premium
+          </Text>
+          <View className="w-11" />
+        </View>
+        <View className="flex-1 items-center justify-center px-6">
+          <Ionicons name="checkmark-circle" size={80} color="#E94B7B" className="mb-6" />
+          <Text className="text-white text-2xl font-bold text-center mb-3 mt-6">
+            You're All Set!
+          </Text>
+          <Text className="text-slate-400 text-base text-center mb-8">
+            You already have an active subscription and full access to all premium devotional content.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.replace("/(root)/(tabs)")}
+            className="bg-pink-600 w-full py-4 rounded-xl items-center justify-center mt-4"
+          >
+            <Text className="text-white text-lg font-bold">Go to Home</Text>
+          </TouchableOpacity>
+        </View>
+        <CustomAlert
+          visible={alertVisible}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          type={alertConfig.type}
+          onClose={() => setAlertVisible(false)}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  if (isIapLoading) {
     return (
       <SafeAreaView className="flex-1 bg-slate-900 justify-center items-center">
         <ActivityIndicator size="large" color="#E94B7B" />
-        <Text className="text-slate-400 mt-4">Loading plans...</Text>
+        <Text className="text-slate-400 mt-4">Connecting to App Store...</Text>
       </SafeAreaView>
-    )
+    );
   }
 
   return (
@@ -186,121 +178,98 @@ const Subscription = () => {
       <StatusBar style="light" />
       <View className="flex-row items-center px-4 py-4 border-b border-slate-800">
         <TouchableOpacity
-          onPress={() => router.replace('/profile')}
-          className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center"
+          onPress={() => router.replace("/profile")}
+          disabled={isBusy}
+          className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center opacity-90 disabled:opacity-50"
           activeOpacity={0.8}
         >
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-xl font-bold text-white">
-          Subscription
+          Daily Answer Premium
         </Text>
         <View className="w-11" />
       </View>
+
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         <View className="items-center px-6 py-8">
-          <Image source={logoImage} className="w-24 h-24 rounded-full mb-6"  />
-          <Text className="text-white text-2xl font-bold text-center mb-3">
-            Get Full Access
+          <Image source={logoImage} className="w-24 h-24 rounded-full mb-6" />
+          <Text className="text-white text-3xl font-bold text-center mb-2">
+            Daily Answer Premium
           </Text>
-          <Text className="text-slate-400 text-base text-center mb-8">
-            Subscribe to get full access to all devotional contents on The Daily
-            Answer.
+          <Text className="text-pink-400 text-lg font-semibold text-center mb-6">
+            Premium devotional content
           </Text>
 
           {/* Features */}
-          <View className="w-full mb-8">
-            {features.map((feature, index) => (
-              <View key={index} className="flex-row items-center mb-3">
-                <Ionicons name="checkmark-circle" size={24} color="#E94B7B" />
-                <Text className="text-slate-300 text-base ml-3">{feature}</Text>
-              </View>
-            ))}
+          <View className="w-full mb-8 bg-slate-800/60 p-5 rounded-2xl border border-slate-800">
+            <View className="flex-row items-center mb-3">
+              <Ionicons name="checkmark-circle" size={22} color="#E94B7B" />
+              <Text className="text-slate-200 text-base ml-3 font-medium">Unlimited premium daily devotionals</Text>
+            </View>
+            <View className="flex-row items-center mb-3">
+              <Ionicons name="checkmark-circle" size={22} color="#E94B7B" />
+              <Text className="text-slate-200 text-base ml-3 font-medium">Offline reading in the app</Text>
+            </View>
+            <View className="flex-row items-center mb-3">
+              <Ionicons name="checkmark-circle" size={22} color="#E94B7B" />
+              <Text className="text-slate-200 text-base ml-3 font-medium">Listen to any devotional audio</Text>
+            </View>
+            <View className="flex-row items-center">
+              <Ionicons name="checkmark-circle" size={22} color="#E94B7B" />
+              <Text className="text-slate-200 text-base ml-3 font-medium">Exclusive prayer and memory tools</Text>
+            </View>
           </View>
 
-          {/* Plan Selection */}
+          {/* Subscription Plans */}
           <View className="w-full mb-6">
-            {plans.map((plan) => (
-              <TouchableOpacity
-                key={plan.id}
-                onPress={() => handleSelectPlan(plan.id)}
-                className={`border-2 rounded-xl p-4 mb-4 ${
-                  selectedPlan === plan.id
-                    ? "border-pink-500 bg-pink-500/10"
-                    : "border-slate-700"
-                }`}
-              >
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-white text-lg font-semibold">{plan.name}</Text>
-                  <Text className="text-white text-lg font-bold">${plan.price.toFixed(2)}</Text>
+            {/* Quarterly Card */}
+            <View className="bg-slate-800 border-2 border-pink-500/50 rounded-2xl p-5 relative overflow-hidden">
+              <View className="absolute top-0 right-0 bg-pink-600 px-3 py-1 rounded-bl-xl">
+                <Text className="text-white text-xs font-bold uppercase tracking-wider">Recommended Plan</Text>
+              </View>
+              <View className="flex-row justify-between items-center mb-3 mt-1">
+                <View>
+                  <Text className="text-white text-xl font-bold">Quarterly</Text>
+                  <Text className="text-slate-400 text-sm mt-1">Full 3-month access</Text>
                 </View>
-                {plan.id === 'yearly_60' && (
-                  <Text className="text-pink-500 text-sm font-semibold mt-1">
-                    Save 25%
-                  </Text>
+                <Text className="text-pink-400 text-xl font-bold">
+                  {threeMonthsPriceString} / 3 months
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={handlePurchaseThreeMonths}
+                disabled={isBusy}
+                className="bg-pink-600 w-full py-3.5 rounded-xl items-center justify-center mt-2 active:bg-pink-700 disabled:opacity-50"
+              >
+                {purchasingPlan === "threemonths" ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-white text-base font-bold">Subscribe Now</Text>
                 )}
               </TouchableOpacity>
-            ))}
+            </View>
           </View>
 
-          {/* Subscribe Button */}
+          {/* Restore Purchases Button */}
           <TouchableOpacity
-            onPress={handleSubscribe}
-            disabled={isSubscribing || loading}
-            className="bg-pink-600 w-full py-4 rounded-xl items-center justify-center mb-6"
+            onPress={handleRestore}
+            disabled={isBusy}
+            className="w-full py-3.5 rounded-xl border border-slate-700 bg-slate-800/80 items-center justify-center mb-6 active:bg-slate-800 disabled:opacity-50"
           >
-            {isSubscribing ? (
+            {isRestoring ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="text-white text-lg font-bold">
-                Subscribe
-              </Text>
+              <Text className="text-slate-300 text-base font-semibold">Restore Purchases</Text>
             )}
           </TouchableOpacity>
 
-          {/* Restore Purchases */}
-          {/* <View className="w-full bg-slate-800 rounded-xl p-4 items-center mb-6">
-            <TouchableOpacity
-              onPress={handleRestorePurchases}
-              disabled={isRestoring}
-            >
-              <Text className="text-pink-500 text-base font-semibold">
-                Restore Purchases
-              </Text>
-            </TouchableOpacity>
-            {isRestoring && (
-              <ActivityIndicator color="#E94B7B" style={{ marginTop: 12 }} />
-            )}
-            {error && (
-              <View className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 mt-4 w-full">
-                <Text className="text-red-400 text-center">{error}</Text>
-                <TouchableOpacity
-                  onPress={handleRestorePurchases}
-                  className="bg-red-500/20 rounded-md py-2 mt-3"
-                >
-                  <Text className="text-white text-center font-semibold">Retry</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View> */}
-
-          {/* Legal */}
-          <View className="items-center mb-6">
-            <TouchableOpacity onPress={() => Linking.openURL('#')}>
-              <Text className="text-slate-400 underline">Terms of Service</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => Linking.openURL('#')} className="mt-2">
-              <Text className="text-slate-400 underline">Privacy Policy</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text className="text-slate-500 text-xs text-center">
-            By clicking "Subscribe", you agree to our Membership Terms of Service. Your payment method will, based on your selection, be charged on a recurring basis $9.99 per quarter, $39.96 yearly (prices are subject to change).
-            {"\n\n"}
-            Your Daily Answer membership will be billed in your local currency, using exchange rates set by Apple/Play. Your payments will be processed by Apple/Play within 24 hours of the end of the current billing cycle.
+          <Text className="text-slate-500 text-xs text-center leading-relaxed">
+            Subscriptions auto-renew unless cancelled at least 24 hours before the current period ends. Manage your subscriptions anytime in your Apple ID Account Settings.
           </Text>
         </View>
       </ScrollView>
+
       <CustomAlert
         visible={alertVisible}
         title={alertConfig.title}
@@ -312,4 +281,4 @@ const Subscription = () => {
   );
 };
 
-export default Subscription;
+export default SubscriptionTab;

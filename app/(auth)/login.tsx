@@ -12,6 +12,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  RefreshControl,
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
 import { ApiError, apiRequest } from "../../utils/api";
@@ -48,6 +49,16 @@ const Login = () => {
   const [step, setStep] = useState<"form" | "otp">("form");
   const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    setEmail("");
+    setPassword("");
+    setOtp("");
+    setStep("form");
+    setRefreshing(false);
+  }, []);
 
   useOtpAutoFill(step === "otp", setOtp);
 
@@ -248,7 +259,18 @@ const Login = () => {
       </View>
 
       <KeyboardAvoidingView  behavior={Platform.OS === "ios" ? "padding" : "height"}  className="flex-1" >
-        <ScrollView  className="flex-1 " contentContainerStyle={{ flexGrow: 1 }}  showsVerticalScrollIndicator={false}  >
+        <ScrollView 
+          contentContainerStyle={{ flexGrow: 1 }} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#E94B7B"
+              colors={["#E94B7B"]}
+            />
+          }
+        >
           {/* Header Section */}
           <View className="px-6 pt-10 pb-8">
             <View className="items-center mb-8">

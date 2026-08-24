@@ -1,28 +1,32 @@
 import logoImage from "@/assets/images/logo.jpeg";
 import CustomAlert from "@/components/CustomAlert";
 import { confirmPayment, confirmRecurringSupport, createSupport } from "@/libs/payment";
+import { useGlobalContext } from "@/utils/auth";
 import { Ionicons } from "@expo/vector-icons";
 import { useStripe } from "@stripe/stripe-react-native";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const Support = () => {
+  const { isAuthenticated, loading: authLoading, refetchUser } = useGlobalContext();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [amount, setAmount] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
   const [interval, setInterval] = useState < "monthly" | "yearly" > ("monthly");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isRestoringAccess, setIsRestoringAccess] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertConfig, setAlertConfig] = useState({
     title: "",
@@ -32,12 +36,60 @@ const Support = () => {
 
   const predefinedAmounts = [5, 10, 25, 50, 100];
 
+  useEffect(() => {
+    if (Platform.OS === "ios") {
+      // Donation/support not available on iOS per App Store guidelines
+      router.replace("/(root)/(tabs)");
+    }
+  }, []);
+
   const handleAmountSelect = (value: number) => {
     setAmount(value.toString());
   };
 
+  const handleRestoreAccess = async () => {
+    if (Platform.OS !== "ios") {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      router.push("/(auth)/login");
+      return;
+    }
+
+    setIsRestoringAccess(true);
+    try {
+      await refetchUser();
+      setAlertConfig({
+        title: "Access Updated",
+        message: "Your account access has been refreshed.",
+        type: "success",
+      });
+      setAlertVisible(true);
+    } catch (error: any) {
+      setAlertConfig({
+        title: "Restore Failed",
+        message: error?.message || "Unable to refresh access right now.",
+        type: "error",
+      });
+      setAlertVisible(true);
+    } finally {
+      setIsRestoringAccess(false);
+    }
+  };
+
 
   const handleSupport = async () => {
+    if (Platform.OS === "ios") {
+      setAlertConfig({
+        title: "Unavailable on iOS",
+        message: "Donations are not available from this iOS screen.",
+        type: "error",
+      });
+      setAlertVisible(true);
+      return;
+    }
+
     const parsedAmount = parseFloat(amount);
 
     if (!amount || parsedAmount < 1) {
@@ -60,69 +112,69 @@ const Support = () => {
 
       const { clientSecret, customerId, type, priceId, setupIntentId } = response;
 
+      // Direct Stripe (Android)
       if (isRecurring) {
-        // For recurring payments, use setupIntentClientSecret
-        const { error: initError } = await initPaymentSheet({
-          merchantDisplayName: "The Daily Answer",
-          customerId: customerId,
-          setupIntentClientSecret: clientSecret,
-          allowsDelayedPaymentMethods: false,
-        });
-
-        if (initError) {
-          setAlertConfig({
-            title: "Error",
-            message: "Failed to initialize payment sheet.",
-            type: "error",
+          const { error: initError } = await initPaymentSheet({
+            merchantDisplayName: "The Daily Answer",
+            customerId: customerId,
+            setupIntentClientSecret: clientSecret,
+            allowsDelayedPaymentMethods: false,
           });
-          setAlertVisible(true);
-          setIsProcessing(false);
-          return;
-        }
 
-        const { error: presentError } = await presentPaymentSheet();
-
-        if (presentError) {
-          if (presentError.code !== "Canceled") {
+          if (initError) {
             setAlertConfig({
-              title: "Payment Error",
-              message: presentError.message,
+              title: "Error",
+              message: "Failed to initialize payment sheet.",
+              type: "error",
+            });
+            setAlertVisible(true);
+            setIsProcessing(false);
+            return;
+          }
+
+          const { error: presentError } = await presentPaymentSheet();
+
+          if (presentError) {
+            if (presentError.code !== "Canceled") {
+              setAlertConfig({
+                title: "Payment Error",
+                message: presentError.message,
+                type: "error",
+              });
+              setAlertVisible(true);
+            }
+            setIsProcessing(false);
+            return;
+          }
+
+          // After successful payment method collection, create the subscription
+          const confirmation = await confirmRecurringSupport(setupIntentId, priceId);
+
+          if (confirmation.success) {
+            setAlertConfig({
+              title: "Thank You! 🎉",
+              message: `Your recurring support of $${parsedAmount.toFixed(2)} has been set up successfully. We truly appreciate your generosity!`,
+              type: "success",
+            });
+            setAlertVisible(true);
+
+            // Reset form
+            setAmount("");
+            setIsRecurring(false);
+
+            // Navigate to Manage Support after a delay
+            setTimeout(() => {
+              router.replace("/ManageSupport" as any);
+            }, 2000);
+
+          } else {
+            setAlertConfig({
+              title: "Confirmation Failed",
+              message: confirmation.message || "Could not set up recurring support.",
               type: "error",
             });
             setAlertVisible(true);
           }
-          setIsProcessing(false);
-          return;
-        }
-
-        // After successful payment method collection, create the subscription
-        const confirmation = await confirmRecurringSupport(setupIntentId, priceId);
-
-        if (confirmation.success) {
-          setAlertConfig({
-            title: "Thank You! 🎉",
-            message: `Your recurring support of $${parsedAmount.toFixed(2)} has been set up successfully. We truly appreciate your generosity!`,
-            type: "success",
-          });
-          setAlertVisible(true);
-
-          // Reset form
-          setAmount("");
-          setIsRecurring(false);
-
-          // Navigate to Manage Support after a delay
-          setTimeout(() => {
-            router.replace("/ManageSupport" as any);
-          }, 2000);
-
-        } else {
-          setAlertConfig({
-            title: "Confirmation Failed",
-            message: confirmation.message || "Could not set up recurring support.",
-            type: "error",
-          });
-          setAlertVisible(true);
-        }
       } else {
         // For one-time payments
         const { error: initError } = await initPaymentSheet({
@@ -222,144 +274,183 @@ const Support = () => {
             Your generous support helps us continue providing quality devotional
             content to people around the world.
           </Text>
+          {Platform.OS === "ios" ? (
+            <View className="w-full">
+              <View className="w-full mb-8">
+                <Text className="text-white text-lg font-semibold mb-4">
+                  Access on iOS:
+                </Text>
+                <View className="flex-row items-center mb-3">
+                  <Ionicons name="checkmark-circle" size={24} color="#E94B7B" />
+                  <Text className="text-slate-300 text-base ml-3">Sign in with your existing account</Text>
+                </View>
+                <View className="flex-row items-center mb-3">
+                  <Ionicons name="checkmark-circle" size={24} color="#E94B7B" />
+                  <Text className="text-slate-300 text-base ml-3">Refresh your account access</Text>
+                </View>
+                <View className="flex-row items-center mb-3">
+                  <Ionicons name="checkmark-circle" size={24} color="#E94B7B" />
+                  <Text className="text-slate-300 text-base ml-3">Continue supporting from allowed platforms</Text>
+                </View>
+              </View>
 
-          {/* Why Support Section */}
-          <View className="w-full mb-8">
-            <Text className="text-white text-lg font-semibold mb-4">
-              Why Your Support Matters:
-            </Text>
-            <View className="flex-row items-center mb-3">
-              <Ionicons name="heart" size={24} color="#E94B7B" />
-              <Text className="text-slate-300 text-base ml-3">
-                Help us reach more people with daily devotionals
+              <TouchableOpacity
+                onPress={handleRestoreAccess}
+                disabled={isRestoringAccess}
+                className="w-full py-4 rounded-xl items-center justify-center mb-6 bg-pink-600 disabled:bg-pink-600/50"
+              >
+                {isRestoringAccess ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-white text-lg font-bold">
+                    Sign In / Restore Access
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <Text className="text-slate-500 text-xs text-center">
+                On iOS, this screen is for account access refresh only.
               </Text>
             </View>
-            <View className="flex-row items-center mb-3">
-              <Ionicons name="create" size={24} color="#E94B7B" />
-              <Text className="text-slate-300 text-base ml-3">
-                Support quality content creation
-              </Text>
-            </View> 
-          </View>
+          ) : (
+            <>
+              {/* Why Support Section */}
+              <View className="w-full mb-8">
+                <Text className="text-white text-lg font-semibold mb-4">
+                  Why Your Support Matters:
+                </Text>
+                <View className="flex-row items-center mb-3">
+                  <Ionicons name="heart" size={24} color="#E94B7B" />
+                  <Text className="text-slate-300 text-base ml-3">
+                    Help us reach more people with daily devotionals
+                  </Text>
+                </View>
+                <View className="flex-row items-center mb-3">
+                  <Ionicons name="create" size={24} color="#E94B7B" />
+                  <Text className="text-slate-300 text-base ml-3">
+                    Support quality content creation
+                  </Text>
+                </View>
+              </View>
 
-          {/* Predefined Amounts */}
-          <View className="w-full mb-6">
-            <Text className="text-white text-lg font-semibold mb-3">
-              Quick Select:
-            </Text>
-            <View className="flex-row flex-wrap justify-between">
-              {predefinedAmounts.map((value) => (
+              {/* Predefined Amounts */}
+              <View className="w-full mb-6">
+                <Text className="text-white text-lg font-semibold mb-3">
+                  Quick Select:
+                </Text>
+                <View className="flex-row flex-wrap justify-between">
+                  {predefinedAmounts.map((value) => (
+                    <TouchableOpacity
+                      key={value}
+                      onPress={() => handleAmountSelect(value)}
+                      className={`w-[30%] border-2 rounded-xl p-3 mb-3 items-center ${amount === value.toString()
+                          ? "border-pink-500 bg-pink-500/10"
+                          : "border-slate-700"
+                        }`}
+                    >
+                      <Text className="text-white text-lg font-bold">
+                        ${value}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Custom Amount Input */}
+              <View className="w-full mb-6">
+                <Text className="text-white text-lg font-semibold mb-3">
+                  Or Enter Custom Amount:
+                </Text>
+                <View className="flex-row items-center bg-slate-800 rounded-xl px-4 py-3 border-2 border-slate-700">
+                  <Text className="text-white text-2xl mr-2">$</Text>
+                  <TextInput
+                    className="flex-1 text-white text-lg"
+                    placeholder="0.00"
+                    placeholderTextColor="#64748B"
+                    keyboardType="decimal-pad"
+                    value={amount}
+                    onChangeText={setAmount}
+                  />
+                </View>
+              </View>
+
+              {/* Recurring Option */}
+              <View className="w-full mb-6">
                 <TouchableOpacity
-                  key={value}
-                  onPress={() => handleAmountSelect(value)}
-                  className={`w-[30%] border-2 rounded-xl p-3 mb-3 items-center ${amount === value.toString()
-                      ? "border-pink-500 bg-pink-500/10"
-                      : "border-slate-700"
-                    }`}
+                  onPress={() => setIsRecurring(!isRecurring)}
+                  className="flex-row items-center bg-slate-800 rounded-xl p-4 border-2 border-slate-700"
                 >
-                  <Text className="text-white text-lg font-bold">
-                    ${value}
+                  <View
+                    className={`w-6 h-6 rounded-md mr-3 items-center justify-center ${isRecurring ? "bg-pink-500" : "bg-slate-700"
+                      }`}
+                  >
+                    {isRecurring && (
+                      <Ionicons name="checkmark" size={18} color="white" />
+                    )}
+                  </View>
+                  <Text className="text-white text-base flex-1">
+                    Make this recurring
                   </Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+              </View>
 
-          {/* Custom Amount Input */}
-          <View className="w-full mb-6">
-            <Text className="text-white text-lg font-semibold mb-3">
-              Or Enter Custom Amount:
-            </Text>
-            <View className="flex-row items-center bg-slate-800 rounded-xl px-4 py-3 border-2 border-slate-700">
-              <Text className="text-white text-2xl mr-2">$</Text>
-              <TextInput
-                className="flex-1 text-white text-lg"
-                placeholder="0.00"
-                placeholderTextColor="#64748B"
-                keyboardType="decimal-pad"
-                value={amount}
-                onChangeText={setAmount}
-              />
-            </View>
-          </View>
+              {/* Interval Selection */}
+              {isRecurring && (
+                <View className="w-full mb-6">
+                  <Text className="text-white text-lg font-semibold mb-3">
+                    Frequency:
+                  </Text>
+                  <View className="flex-row justify-between">
+                    <TouchableOpacity
+                      onPress={() => setInterval("monthly")}
+                      className={`flex-1 mr-2 border-2 rounded-xl p-4 items-center ${interval === "monthly"
+                          ? "border-pink-500 bg-pink-500/10"
+                          : "border-slate-700"
+                        }`}
+                    >
+                      <Text className="text-white text-base font-semibold">
+                        Monthly
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setInterval("yearly")}
+                      className={`flex-1 ml-2 border-2 rounded-xl p-4 items-center ${interval === "yearly"
+                          ? "border-pink-500 bg-pink-500/10"
+                          : "border-slate-700"
+                        }`}
+                    >
+                      <Text className="text-white text-base font-semibold">
+                        Yearly
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
-          {/* Recurring Option */}
-          <View className="w-full mb-6">
-            <TouchableOpacity
-              onPress={() => setIsRecurring(!isRecurring)}
-              className="flex-row items-center bg-slate-800 rounded-xl p-4 border-2 border-slate-700"
-            >
-              <View
-                className={`w-6 h-6 rounded-md mr-3 items-center justify-center ${isRecurring ? "bg-pink-500" : "bg-slate-700"
+              {/* Support Button */}
+              <TouchableOpacity
+                onPress={handleSupport}
+                disabled={isProcessing || !amount}
+                className={`w-full py-4 rounded-xl items-center justify-center mb-6 ${isProcessing || !amount ? "bg-pink-600/50" : "bg-pink-600"
                   }`}
               >
-                {isRecurring && (
-                  <Ionicons name="checkmark" size={18} color="white" />
+                {isProcessing ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-white text-lg font-bold">
+                    {amount ? `Support with $${parseFloat(amount || "0").toFixed(2)}` : "Enter Amount"}
+                  </Text>
                 )}
-              </View>
-              <Text className="text-white text-base flex-1">
-                Make this recurring
-              </Text>
-            </TouchableOpacity>
-          </View>
+              </TouchableOpacity>
 
-          {/* Interval Selection */}
-          {isRecurring && (
-            <View className="w-full mb-6">
-              <Text className="text-white text-lg font-semibold mb-3">
-                Frequency:
+              {/* Info Text */}
+              <Text className="text-slate-500 text-xs text-center">
+                {isRecurring
+                  ? `Your payment method will be charged $${parseFloat(amount || "0").toFixed(2)} ${interval} on a recurring basis. You can cancel at any time.`
+                  : "This is a secure one-time payment. Your support goes directly to maintaining and improving The Daily Answer."}
               </Text>
-              <View className="flex-row justify-between">
-                <TouchableOpacity
-                  onPress={() => setInterval("monthly")}
-                  className={`flex-1 mr-2 border-2 rounded-xl p-4 items-center ${interval === "monthly"
-                      ? "border-pink-500 bg-pink-500/10"
-                      : "border-slate-700"
-                    }`}
-                >
-                  <Text className="text-white text-base font-semibold">
-                    Monthly
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setInterval("yearly")}
-                  className={`flex-1 ml-2 border-2 rounded-xl p-4 items-center ${interval === "yearly"
-                      ? "border-pink-500 bg-pink-500/10"
-                      : "border-slate-700"
-                    }`}
-                >
-                  <Text className="text-white text-base font-semibold">
-                    Yearly
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            </>
           )}
-
-          {/* Support Button */}
-          <TouchableOpacity
-            onPress={handleSupport}
-            disabled={isProcessing || !amount}
-            className={`w-full py-4 rounded-xl items-center justify-center mb-6 ${isProcessing || !amount ? "bg-pink-600/50" : "bg-pink-600"
-              }`}
-          >
-            {isProcessing ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text className="text-white text-lg font-bold">
-                {amount
-                  ? `Support with $${parseFloat(amount || "0").toFixed(2)}`
-                  : "Enter Amount"}
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Info Text */}
-          <Text className="text-slate-500 text-xs text-center">
-            {isRecurring
-              ? `Your payment method will be charged $${parseFloat(amount || "0").toFixed(2)} ${interval} on a recurring basis. You can cancel at any time.`
-              : "This is a secure one-time payment. Your support goes directly to maintaining and improving The Daily Answer."}
-          </Text>
         </View>
       </ScrollView>
       <CustomAlert

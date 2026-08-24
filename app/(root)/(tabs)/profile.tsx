@@ -3,10 +3,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from "expo-secure-store";
 import React, { useEffect, useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ImageSourcePropType, ScrollView, Text, TouchableOpacity, View, Platform } from 'react-native';
+import { apiEndpoint, ApiError } from '../../../utils/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isAuthenticated, useGlobalContext } from '../../../utils/auth';
 import { StatusBar } from 'expo-status-bar';
+import CustomAlert from '@/components/CustomAlert';
 
 interface SettingsItemProps {
   icon: ImageSourcePropType;
@@ -42,8 +44,30 @@ const SettingsItem = ({
 const Profile = () => {
   const router = useRouter();
   const [authenticated, setAuthenticated] = useState(false);
-  const { user, setUser } = useGlobalContext();
+  const { user, setUser, hasPaid } = useGlobalContext();
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'success' | 'error'>('success');
+  const alertOnCloseRef = React.useRef<(() => void) | null>(null);
+
+  const showAlert = (title: string, message: string, type: 'success' | 'error', onClose?: () => void) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertType(type);
+    alertOnCloseRef.current = onClose || null;
+    setAlertVisible(true);
+  };
+
+  const handleAlertClose = () => {
+    setAlertVisible(false);
+    if (alertOnCloseRef.current) {
+      alertOnCloseRef.current();
+      alertOnCloseRef.current = null;
+    }
+  };
   
     useEffect(() => {
       if (user) {
@@ -71,6 +95,35 @@ const Profile = () => {
     SecureStore.deleteItemAsync("access_token");
     setUser(null);
     router.replace("/(auth)/login");
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await apiEndpoint("/profile/delete", { method: "DELETE" });
+              await SecureStore.deleteItemAsync("access_token");
+              setUser(null);
+              
+              showAlert("Success", "Your account has been deleted successfully.", "success", () => {
+                router.replace("/(auth)/login");
+              });
+            } catch (error) {
+              console.log("delete: ", error);
+              const errMsg = ApiError.getMessage(error);
+              showAlert("Error", errMsg || "Failed to delete account. Please try again later.", "error");
+            }
+          },
+        },
+      ]
+    );
   };
 
 
@@ -141,9 +194,11 @@ const Profile = () => {
         </View>
          
         <View className="flex flex-col mt-10">
-          <SettingsItem icon={icons.person}  title="Profile" onPress={() => router.push('/edit_profile')}/>
-          <SettingsItem icon={icons.bell}  title='Subscription' onPress={() => router.push('/subscription')}/>
-          <SettingsItem icon={icons.dumbell} title='Donation' onPress={() => router.push('/ManageSupport')}/>
+          <SettingsItem icon={icons.person} title="Profile" onPress={() => router.push('/edit_profile')}/>
+          <SettingsItem icon={icons.bell} title="Subscription" onPress={() => router.push('/subscription')}/>
+          {Platform.OS !== 'ios' && (
+            <SettingsItem icon={icons.dumbell} title="Donation" onPress={() => router.push('/ManageSupport')}/>
+          )}
           <SettingsItem icon={icons.language}  title="Memory Verse" onPress={() => router.push('/memory')} />
           <SettingsItem icon={icons.star}  title="Bookmark" onPress={() => router.push('/saved_devotionals')} />
           <SettingsItem icon={icons.file}  title="Notes" onPress={() => router.push('/note')} />
@@ -156,9 +211,19 @@ const Profile = () => {
           <SettingsItem icon={icons.logout} title="Logout"
             onPress={handleLogout} textStyle="text-red-500"  showArrow={false}
           />
+          <SettingsItem icon={icons.deleteicon} title="Delete Account"
+            onPress={handleDeleteAccount} textStyle="text-red-500" showArrow={false}
+          />
         </View>
       </View>
       </ScrollView>
+      <CustomAlert
+        visible={alertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        type={alertType}
+        onClose={handleAlertClose}
+      />
     </SafeAreaView>
   );
 };

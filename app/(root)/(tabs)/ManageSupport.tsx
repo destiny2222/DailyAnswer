@@ -6,12 +6,13 @@ import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Platform,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -27,6 +28,13 @@ interface RecurringSupport {
 }
 
 const ManageSupport = () => {
+  useEffect(() => {
+    if (Platform.OS === "ios") {
+      // Donation management not available on iOS per App Store guidelines
+      router.replace("/(root)/(tabs)");
+    }
+  }, []);
+
   // In a real app, fetch this data from your API
   const [supports, setSupports] = useState < RecurringSupport[] > ([]);
   // Track loading state per subscription
@@ -178,7 +186,7 @@ const ManageSupport = () => {
                 className="bg-pink-600 active:bg-pink-700 px-6 py-3.5 rounded-xl items-center justify-center w-full max-w-xs"
               >
                 <Text className="text-white text-base font-bold">
-                  Support Our Mission
+                  {Platform.OS === "ios" ? "Review Account Access" : "Support Our Mission"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -242,14 +250,16 @@ const ManageSupport = () => {
                 </View>
               ))}
 
-              <TouchableOpacity
-                onPress={() => router.push("/support" as any)}
-                className="bg-slate-800 border-2 border-pink-500 rounded-xl p-4 items-center mt-4"
-              >
-                <Text className="text-pink-500 text-base font-semibold">
-                  Add More Donations
-                </Text>
-              </TouchableOpacity>
+              {Platform.OS !== "ios" && (
+                <TouchableOpacity
+                  onPress={() => router.push("/support" as any)}
+                  className="bg-slate-800 border-2 border-pink-500 rounded-xl p-4 items-center mt-4"
+                >
+                  <Text className="text-pink-500 text-base font-semibold">
+                    Add More Donations
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
