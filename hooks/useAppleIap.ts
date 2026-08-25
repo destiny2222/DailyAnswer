@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useIAP } from "expo-iap";
 import type { Purchase } from "expo-iap";
 import { apiRequest } from "@/utils/api";
@@ -137,19 +137,29 @@ export const useAppleIap = (): AppleIapState => {
     },
   });
 
-  // ─── Load subscription products ──────────────────────────────────────────────
-  const refreshProducts = useCallback(async () => {
-    try {
-      await fetchProducts({ skus: SUBSCRIPTION_SKUS, type: "subs" });
-      console.log("[Apple IAP] Subscriptions fetched:", subscriptions);
-    } catch (err) {
-      console.warn("[Apple IAP] fetchProducts error:", err);
-    }
-  }, [fetchProducts, subscriptions]);
-
   // Derive the 3-month product from the subscriptions list managed by useIAP
   const threeMonthsProduct =
     subscriptions.find((p) => p.id === PRODUCT_ID_3MONTHS) ?? null;
+
+  // Add logging for state transitions
+  useEffect(() => {
+    console.log("========== APPLE IAP DEBUG ==========");
+    console.log("Connected:", connected);
+    console.log("Subscriptions:", subscriptions);
+    console.log("3 Month Product:", threeMonthsProduct);
+    console.log("=====================================");
+  }, [connected, subscriptions, threeMonthsProduct]);
+
+  // ─── Load subscription products ──────────────────────────────────────────────
+  const refreshProducts = useCallback(async () => {
+    try {
+      console.log("[Apple IAP] Fetching products...");
+      await fetchProducts({ skus: SUBSCRIPTION_SKUS, type: "subs" });
+      console.log("[Apple IAP] fetchProducts call completed successfully.");
+    } catch (err: any) {
+      console.error("[Apple IAP] fetchProducts ERROR:", err);
+    }
+  }, [fetchProducts]);
 
   // ─── Trigger a subscription purchase ────────────────────────────────────────
   const purchaseThreeMonths = useCallback(async (): Promise<{
