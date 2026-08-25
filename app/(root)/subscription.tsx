@@ -118,8 +118,10 @@ const SubscriptionScreen = () => {
   };
 
   //|| "$99.99" 
-  const threeMonthsPriceString = threeMonthsProduct?.displayPrice;
+  const threeMonthsPriceString =
+  threeMonthsProduct?.displayPrice ?? "Loading…";
 
+// Disable subscribe when product is missing
   const isBusy = purchasingPlan !== null || isRestoring || isProcessing;
 
   if (hasPaid) {
@@ -180,7 +182,7 @@ const SubscriptionScreen = () => {
       <View className="flex-row items-center px-4 py-4 border-b border-slate-800">
         <TouchableOpacity
           onPress={() => router.back()}
-          disabled={isBusy}
+          disabled={isBusy || !threeMonthsProduct}
           className="w-11 h-11 rounded-full bg-slate-800 items-center justify-center opacity-90 disabled:opacity-50"
           activeOpacity={0.8}
         >
@@ -255,7 +257,7 @@ const SubscriptionScreen = () => {
           {/* Restore Purchases Button */}
           <TouchableOpacity
             onPress={handleRestore}
-            disabled={isBusy}
+            disabled={isBusy || !threeMonthsProduct}
             className="w-full py-3.5 rounded-xl border border-slate-700 bg-slate-800/80 items-center justify-center mb-6 active:bg-slate-800 disabled:opacity-50"
           >
             {isRestoring ? (
