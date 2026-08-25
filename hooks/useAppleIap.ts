@@ -41,6 +41,7 @@ export const useAppleIap = (): AppleIapState => {
   const purchasePromiseResolve = useRef<
     ((value: { success: boolean; cancelled?: boolean; error?: string }) => void) | null
   >(null);
+  const activeProductId = useRef<string | null>(null);
 
   const loadProducts = useCallback(async () => {
     try {
@@ -72,6 +73,8 @@ export const useAppleIap = (): AppleIapState => {
       const token = purchase.purchaseToken || purchase.id;
       if (!token) return;
 
+      const isCurrentRequest = activeProductId.current !== null && purchase.productId === activeProductId.current;
+
       try {
         setIsProcessing(true);
 
@@ -99,39 +102,37 @@ export const useAppleIap = (): AppleIapState => {
         if (response.success) {
           await refetchUser();
           setHasPaid(true);
-          if (purchasePromiseResolve.current) {
-            purchasePromiseResolve.current({ success: true });
-            purchasePromiseResolve.current = null;
-          }
-        } else {
-          if (purchasePromiseResolve.current) {
-            purchasePromiseResolve.current({
-              success: false,
-              error: response.message || "Failed to verify subscription with server.",
-            });
-            purchasePromiseResolve.current = null;
-          }
+        }
+
+        if (isCurrentRequest && purchasePromiseResolve.current) {
+          purchasePromiseResolve.current({
+            success: response.success,
+            error: response.success ? undefined : response.message || "Failed to verify subscription with server.",
+          });
+          purchasePromiseResolve.current = null;
+          activeProductId.current = null;
         }
       } catch (e: any) {
         try {
           await finishTransaction({ purchase, isConsumable: false });
         } catch {}
-        if (purchasePromiseResolve.current) {
+        if (isCurrentRequest && purchasePromiseResolve.current) {
           purchasePromiseResolve.current({
             success: false,
             error: e?.message || "Server verification error.",
           });
           purchasePromiseResolve.current = null;
+          activeProductId.current = null;
         }
       } finally {
         setIsProcessing(false);
       }
     });
 
-    const purchaseError = purchaseErrorListener((error: PurchaseError) => {
+    const purchaseError = purchaseErrorListener((error: any) => {
       setIsProcessing(false);
       const isCancelled =
-        error.code === ErrorCode.E_USER_CANCELLED ||
+        error.code === ErrorCode.UserCancelled ||
         error.message?.toLowerCase().includes("user canceled") ||
         error.message?.toLowerCase().includes("user cancelled") ||
         error.message?.toLowerCase().includes("cancelled");
@@ -143,6 +144,7 @@ export const useAppleIap = (): AppleIapState => {
           error: isCancelled ? undefined : error.message || "Purchase failed.",
         });
         purchasePromiseResolve.current = null;
+        activeProductId.current = null;
       }
     });
 
@@ -160,22 +162,25 @@ export const useAppleIap = (): AppleIapState => {
 
     return new Promise(async (resolve) => {
       purchasePromiseResolve.current = resolve;
+      activeProductId.current = productId;
       try {
-        if (Platform.OS === "ios") {
-          // expo-iap requestPurchase for iOS takes sku under ios.sku
-          await requestPurchase({ ios: { sku: productId } });
-        } else {
-          await requestPurchase({ android: { skus: [productId] } } as any);
-        }
+        await requestPurchase({
+          request: {
+            apple: { sku: productId },
+            google: { skus: [productId] },
+          },
+          type: "subs",
+        });
       } catch (err: any) {
         setIsProcessing(false);
         const isCancelled =
-          err?.code === ErrorCode.E_USER_CANCELLED ||
+          err?.code === ErrorCode.UserCancelled ||
           err?.message?.toLowerCase().includes("user canceled") ||
           err?.message?.toLowerCase().includes("user cancelled") ||
           err?.message?.toLowerCase().includes("cancelled");
 
         purchasePromiseResolve.current = null;
+        activeProductId.current = null;
         resolve({
           success: false,
           cancelled: isCancelled,

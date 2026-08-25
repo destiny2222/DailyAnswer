@@ -117,7 +117,8 @@ const SubscriptionScreen = () => {
     }
   };
 
-  const threeMonthsPriceString = threeMonthsProduct?.displayPrice || "$99.99";
+  //  || "$99.99"
+  const threeMonthsPriceString = threeMonthsProduct?.displayPrice;
 
   const isBusy = purchasingPlan !== null || isRestoring || isProcessing;
 
