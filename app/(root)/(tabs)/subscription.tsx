@@ -117,8 +117,8 @@ const SubscriptionTab = () => {
     }
   };
 
-  const threeMonthsPriceString = threeMonthsProduct?.displayPrice || "$99.99";
-
+  const threeMonthsPriceString = threeMonthsProduct?.displayPrice;
+  console.log("🚀 ~ SubscriptionTab ~ threeMonthsPriceString:", threeMonthsProduct);
   const isBusy = purchasingPlan !== null || isRestoring || isProcessing;
 
   if (hasPaid) {
