@@ -117,8 +117,11 @@ const SubscriptionTab = () => {
     }
   };
 
-  const threeMonthsPriceString = threeMonthsProduct?.displayPrice;
-  console.log("🚀 ~ SubscriptionTab ~ threeMonthsPriceString:", threeMonthsProduct);
+  const threeMonthsPriceString =
+  threeMonthsProduct?.displayPrice ?? "Loading…";
+
+// Disable subscribe when product is missing 
+  // console.log("🚀 ~ SubscriptionTab ~ threeMonthsPriceString:", threeMonthsProduct);
   const isBusy = purchasingPlan !== null || isRestoring || isProcessing;
 
   if (hasPaid) {
@@ -239,7 +242,7 @@ const SubscriptionTab = () => {
               </View>
               <TouchableOpacity
                 onPress={handlePurchaseThreeMonths}
-                disabled={isBusy}
+                disabled={isBusy || !threeMonthsProduct}
                 className="bg-pink-600 w-full py-3.5 rounded-xl items-center justify-center mt-2 active:bg-pink-700 disabled:opacity-50"
               >
                 {purchasingPlan === "threemonths" ? (
@@ -254,7 +257,7 @@ const SubscriptionTab = () => {
           {/* Restore Purchases Button */}
           <TouchableOpacity
             onPress={handleRestore}
-            disabled={isBusy}
+            disabled={isBusy || !threeMonthsProduct}
             className="w-full py-3.5 rounded-xl border border-slate-700 bg-slate-800/80 items-center justify-center mb-6 active:bg-slate-800 disabled:opacity-50"
           >
             {isRestoring ? (
