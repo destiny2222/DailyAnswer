@@ -141,7 +141,7 @@ export async function hasCompletedOnboarding(): Promise<boolean> {
  */
 export async function getUserProfile(): Promise<UserProfile | null> {
   try {
-    const response = await apiRequest<ProfileResponse>("/profile", { auth: true });
+    const response = await apiRequest<ProfileResponse>("/users/profile", { auth: true });
     if (response.success) {
       return response.data;
     }

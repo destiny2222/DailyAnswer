@@ -1,7 +1,7 @@
 import { apiRequest } from "../utils/api";
 
 export const changeProfileImage = async (formData: FormData) => {
-  const response = await apiRequest("/profile/change-image", {
+  const response = await apiRequest("/users/profile/change-image", {
     method: "POST",
     body: formData,
   });
@@ -13,7 +13,7 @@ export const updateUserProfile = async (profileData: {
   username: string;
   email: string;
 }) => {
-  const response = await apiRequest("/profile/update", {
+  const response = await apiRequest("/users/profile/update", {
     method: "PUT",
     body: profileData,
   });
@@ -24,7 +24,7 @@ export const changePassword = async (passwordData: {
   new_password: string;
   new_password_confirmation: string;
 }) => {
-  const response = await apiRequest("/profile/change-password", {
+  const response = await apiRequest("/users/profile/change-password", {
     method: "POST",
     body: passwordData,
   });

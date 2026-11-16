@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert } from "react-native";
 import { useIAP, getAvailablePurchases as getAvailablePurchasesRoot } from "expo-iap";
 import type { Purchase } from "expo-iap";
 import { apiRequest } from "@/utils/api";
@@ -44,8 +45,13 @@ export const useAppleIap = (): AppleIapState => {
   >(null);
 
   const verifyAndFinish = useCallback(
-    async (purchase: Purchase): Promise<{ success: boolean; error?: string }> => {
+    async (
+      purchase: Purchase,
+      isSim = false
+    ): Promise<{ success: boolean; error?: string }> => {
       const iosPurchase = purchase as any;
+
+      let backendSuccess = false;
 
       try {
         const response = await apiRequest<{ success: boolean; message?: string }>(
@@ -65,35 +71,49 @@ export const useAppleIap = (): AppleIapState => {
           }
         );
 
-        // Always finish after server verification attempt
-        if (finishTransactionRef.current) {
-          await finishTransactionRef.current({
-            purchase,
-            isConsumable: false,
-          });
+        backendSuccess = !!response.success;
+
+        // Only call finishTransaction for real (non-simulated) purchases
+        if (!isSim && finishTransactionRef.current) {
+          try {
+            await finishTransactionRef.current({
+              purchase,
+              isConsumable: false,
+            });
+          } catch {
+            // finishTransaction failing doesn't undo a successful server verification
+          }
         }
 
-        if (response.success) {
+        if (backendSuccess) {
           await refetchUser();
           setHasPaid(true);
         }
 
         return {
-          success: !!response.success,
-          error: response.success
+          success: backendSuccess,
+          error: backendSuccess
             ? undefined
             : response.message || "Failed to verify subscription with server.",
         };
       } catch (e: any) {
-        // Still try to finish so the transaction doesn't stay stuck
-        try {
-          if (finishTransactionRef.current) {
-            await finishTransactionRef.current({
-              purchase,
-              isConsumable: false,
-            });
-          }
-        } catch {}
+        // If backend already succeeded but something else threw, still honour it
+        if (backendSuccess) {
+          await refetchUser().catch(() => {});
+          setHasPaid(true);
+          return { success: true };
+        }
+        // For real purchases: still try to finish so the transaction doesn't stay stuck
+        if (!isSim) {
+          try {
+            if (finishTransactionRef.current) {
+              await finishTransactionRef.current({
+                purchase,
+                isConsumable: false,
+              });
+            }
+          } catch {}
+        }
         return {
           success: false,
           error: e?.message || "Server verification error.",
@@ -101,6 +121,50 @@ export const useAppleIap = (): AppleIapState => {
       }
     },
     [refetchUser, setHasPaid]
+  );
+
+  const handleDevSimulatorFallback = useCallback(
+    (resolve: (value: { success: boolean; cancelled?: boolean; error?: string }) => void) => {
+      Alert.alert(
+        "Simulator Purchase Test",
+        "Apple StoreKit authentication was cancelled or rejected by the Simulator.\n\nWould you like to simulate a successful Apple purchase to test your backend verification?",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => {
+              resolve({ success: false, cancelled: true });
+            },
+          },
+          {
+            text: "Simulate & Verify Backend",
+            onPress: async () => {
+              try {
+                setIsProcessing(true);
+                const simPurchase: any = {
+                  id: "sim_" + Date.now(),
+                  transactionId: "sim_" + Date.now(),
+                  originalTransactionIdentifierIOS: "sim_orig_" + Date.now(),
+                  productId: PRODUCT_ID_3MONTHS,
+                  purchaseToken: "sim_storekit2_token_" + Date.now(),
+                  transactionDate: Date.now(),
+                };
+                const verifyResult = await verifyAndFinish(simPurchase, true);
+                resolve({
+                  success: verifyResult.success,
+                  error: verifyResult.error,
+                });
+              } catch (e: any) {
+                resolve({ success: false, error: e?.message });
+              } finally {
+                setIsProcessing(false);
+              }
+            },
+          },
+        ]
+      );
+    },
+    [verifyAndFinish]
   );
 
   const {
@@ -141,13 +205,20 @@ export const useAppleIap = (): AppleIapState => {
         error?.message?.toLowerCase?.().includes("cancel");
 
       if (purchasePromiseResolve.current) {
-        purchasePromiseResolve.current({
+        const resolve = purchasePromiseResolve.current;
+        purchasePromiseResolve.current = null;
+        activeProductId.current = null;
+
+        if (__DEV__ && isCancelled) {
+          handleDevSimulatorFallback(resolve);
+          return;
+        }
+
+        resolve({
           success: false,
           cancelled: isCancelled,
           error: isCancelled ? undefined : error?.message || "Purchase failed.",
         });
-        purchasePromiseResolve.current = null;
-        activeProductId.current = null;
       }
     },
 
@@ -168,10 +239,10 @@ export const useAppleIap = (): AppleIapState => {
   const refreshProducts = useCallback(async () => {
     if (!connected) return;
     try {
-      // console.log("[Apple IAP] Fetching products...", SUBSCRIPTION_SKUS);
+      console.log("[Apple IAP] Fetching products...", SUBSCRIPTION_SKUS);
       await fetchProducts({ skus: SUBSCRIPTION_SKUS, type: "subs" });
       // Temporary debug – remove later
-      // console.log("[Apple IAP] Raw subscriptions after fetch:", JSON.stringify(subscriptions, null, 2));
+      console.log("[Apple IAP] Raw subscriptions after fetch:", JSON.stringify(subscriptions, null, 2));
       // console.log("[Apple IAP] Requested SKUs:", SUBSCRIPTION_SKUS);
       setProductsLoaded(true);
       // console.log("[Apple IAP] Products fetched");
@@ -191,11 +262,11 @@ export const useAppleIap = (): AppleIapState => {
   useEffect(() => {
     if (__DEV__) {
       // console.log("========== APPLE IAP DEBUG ==========");
-      // console.log("Connected:", connected);
-      // console.log("Products loaded:", productsLoaded);
-      // console.log("Subscriptions count:", subscriptions.length);
-      // console.log("3 Month Product:", threeMonthsProduct?.id, threeMonthsProduct?.displayPrice);
-      // console.log("=====================================");
+      console.log("Connected:", connected);
+      console.log("Products loaded:", productsLoaded);
+      console.log("Subscriptions count:", subscriptions.length);
+      console.log("3 Month Product:", threeMonthsProduct?.id, threeMonthsProduct?.displayPrice);
+      console.log("=====================================");
     }
   }, [connected, productsLoaded, subscriptions, threeMonthsProduct]);
 
@@ -237,6 +308,11 @@ export const useAppleIap = (): AppleIapState => {
             err?.code === "user-cancelled" ||
             err?.code === "E_USER_CANCELLED" ||
             err?.message?.toLowerCase?.().includes("cancel");
+
+          if (__DEV__ && isCancelled) {
+            handleDevSimulatorFallback(resolve);
+            return;
+          }
 
           resolve({
             success: false,
@@ -294,7 +370,7 @@ export const useAppleIap = (): AppleIapState => {
       const profile = await apiRequest<{
         success: boolean;
         data: { has_paid: boolean };
-      }>("/profile", { auth: true });
+      }>("/users/profile", { auth: true });
 
       if (profile?.data?.has_paid) {
         setHasPaid(true);
