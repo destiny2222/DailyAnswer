@@ -1,4 +1,5 @@
 import CustomAlert from '@/components/CustomAlert';
+import { CustomInput, CustomButton } from '@/components';
 import { changePassword } from '@/libs/profileUpdate';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -189,92 +190,50 @@ const ChangedPassword = () => {
         {/* Form */}
         <View className="px-6 pb-8">
           {/* Current Password */}
-          <View className="mb-6">
-            <Text className="text-gray-200 font-rubik-medium mb-2">
-              Current Password
-            </Text>
-            <View className="flex-row items-center bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
-              <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />
-              <TextInput
-                className="flex-1 ml-3 text-gray-200 font-rubik-regular text-base"
-                placeholder="Enter current password"
-                placeholderTextColor="#9CA3AF"
-                secureTextEntry={!showCurrentPassword}
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity onPress={() => setShowCurrentPassword(!showCurrentPassword)}>
-                <Ionicons 
-                  name={showCurrentPassword ? "eye-outline" : "eye-off-outline"} 
-                  size={20} 
-                  color="#9CA3AF" 
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
+          <CustomInput
+            label="Current Password"
+            placeholder="Enter current password"
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            leftIcon="lock-closed-outline"
+            isPassword
+            autoCapitalize="none"
+            containerClassName="mb-6"
+          />
 
           {/* New Password */}
-          <View className="mb-6">
-            <Text className="text-gray-200 font-rubik-medium mb-2">
-              New Password
-            </Text>
-            <View className="flex-row items-center bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
-              <Ionicons name="lock-closed" size={20} color="#9CA3AF" />
-              <TextInput
-                className="flex-1 ml-3 text-gray-200 font-rubik-regular text-base"
-                placeholder="Enter new password"
-                placeholderTextColor="#9CA3AF"
-                secureTextEntry={!showNewPassword}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)}>
-                <Ionicons 
-                  name={showNewPassword ? "eye-outline" : "eye-off-outline"} 
-                  size={20} 
-                  color="#9CA3AF" 
-                />
-              </TouchableOpacity>
-            </View>
-            {newPassword.length > 0 && newPassword.length < 8 && (
-              <Text className="text-red-500 text-xs mt-1 ml-1">
-                Password must be at least 8 characters
-              </Text>
-            )}
-          </View>
+          <CustomInput
+            label="New Password"
+            placeholder="Enter new password"
+            value={newPassword}
+            onChangeText={setNewPassword}
+            leftIcon="lock-closed"
+            isPassword
+            autoCapitalize="none"
+            error={
+              newPassword.length > 0 && newPassword.length < 8
+                ? "Password must be at least 8 characters"
+                : undefined
+            }
+            containerClassName="mb-6"
+          />
 
           {/* Confirm New Password */}
-          <View className="mb-8">
-            <Text className="text-gray-200 font-rubik-medium mb-2">
-              Confirm New Password
-            </Text>
-            <View className="flex-row items-center bg-gray-800 border border-gray-700 rounded-xl px-4 py-3">
-              <Ionicons name="lock-closed" size={20} color="#9CA3AF" />
-              <TextInput
-                className="flex-1 ml-3 text-gray-200 font-rubik-regular text-base"
-                placeholder="Confirm new password"
-                placeholderTextColor="#9CA3AF"
-                secureTextEntry={!showConfirmPassword}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                <Ionicons 
-                  name={showConfirmPassword ? "eye-outline" : "eye-off-outline"} 
-                  size={20} 
-                  color="#9CA3AF" 
-                />
-              </TouchableOpacity>
-            </View>
-            {confirmPassword.length > 0 && newPassword !== confirmPassword && (
-              <Text className="text-red-500 text-xs mt-1 ml-1">
-                Passwords do not match
-              </Text>
-            )}
-          </View>
+          <CustomInput
+            label="Confirm New Password"
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            leftIcon="lock-closed"
+            isPassword
+            autoCapitalize="none"
+            error={
+              confirmPassword.length > 0 && newPassword !== confirmPassword
+                ? "Passwords do not match"
+                : undefined
+            }
+            containerClassName="mb-6"
+          />
 
           {/* Password Requirements */}
           <View className="bg-gray-700 border border-gray-700 rounded-xl p-4 mb-6">
@@ -314,21 +273,12 @@ const ChangedPassword = () => {
           </View>
 
           {/* Update Button */}
-          <TouchableOpacity
+          <CustomButton
+            title="Update Password"
             onPress={handleChangePassword}
-            disabled={loading}
-            className={`bg-[#E94B7B] rounded-xl py-4 items-center justify-center ${
-              loading ? 'opacity-70' : ''
-            }`}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text className="text-white font-rubik-semibold text-lg">
-                Update Password
-              </Text>
-            )}
-          </TouchableOpacity>
+            loading={loading}
+            className="rounded-xl"
+          />
 
           {/* Cancel Button */}
           <TouchableOpacity

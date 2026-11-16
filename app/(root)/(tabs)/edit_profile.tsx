@@ -95,15 +95,12 @@ const handleImageUpload = async (uri: string) => {
       success: boolean;
       message: string;
       data: any;
-    }>("/profile/change-image", {
+    }>("/users/profile/change-image", {
       method: "POST",
       body: formData,
     });
 
     // console.log("[DEBUG] Profile Image Upload Response:", response);
-
-    // Defensive check: backend PHP code returns { success, message, data }
-    // but we check for response.data specifically since that's what setUser needs.
     if (response && (response.success || response.data)) {
       if (response.data) {
         setUser(response.data);
@@ -115,6 +112,7 @@ const handleImageUpload = async (uri: string) => {
         message: response.message || "Profile image updated successfully.",
         type: "success",
       });
+      setTimeout(() => router.replace('/profile'), 400);
     } else {
       setAlertInfo({
         visible: true,
@@ -145,7 +143,7 @@ const handleImageUpload = async (uri: string) => {
   const handleUpdateProfile = async () => {
     setLoading(true);
     try {
-      const response = await apiRequest('/profile/update', {
+      const response = await apiRequest('/users/profile/update', {
         method: 'PUT',
         body: {
           name,
@@ -162,7 +160,7 @@ const handleImageUpload = async (uri: string) => {
             message: 'Profile updated successfully.',
             type: 'success',
         });
-        // router.replace('/profile');
+      setTimeout(() => router.replace('/profile'), 200);
       } else {
         setAlertInfo({
             visible: true,

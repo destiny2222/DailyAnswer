@@ -6,30 +6,31 @@ import devo5 from '@/assets/images/devo/5.jpg';
 import devo6 from '@/assets/images/devo/6.jpg';
 import devo7 from '@/assets/images/devo/7.jpg';
 
+import CustomAlert from "@/components/CustomAlert";
+import SubscriptionModal from "@/components/SubscriptionModal";
+import { ApiError } from '@/utils/api';
 import { formatDateLong, safeParseDate } from '@/utils/date';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { setAudioModeAsync } from 'expo-audio';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import * as Speech from 'expo-speech';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Modal,
+  Platform,
   ScrollView,
   Share,
   Switch,
   Text,
   TouchableOpacity,
-  View,
-  Platform,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { detailDevotional } from '../../libs/devotional';
-import CustomAlert from "@/components/CustomAlert";
+import { detailDevotional, Devotional } from '../../libs/devotional';
 
 const getFallbackImage = (dateInput?: string | Date) => {
   const date = safeParseDate(dateInput);
@@ -79,9 +80,13 @@ const preprocessForSpeech = (text: string) => {
 
 const DevotionalDetail = () => {
   const { id } = useLocalSearchParams();
+  const rawId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
-  const [devotional, setDevotional] = useState < Devotional | null > (null);
+  const [devotional, setDevotional] = useState<Devotional | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [requiresPayment, setRequiresPayment] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [showFormatMenu, setShowFormatMenu] = useState(false);
@@ -99,38 +104,62 @@ const DevotionalDetail = () => {
   const isPausedRef = useRef(false);
 
   useEffect(() => {
-    loadDevotional();
-    setupAudio();
+    if (rawId) {
+      loadDevotional();
+      setupAudio();
+    }
 
     return () => {
       // Cleanup speech when component unmounts
       Speech.stop();
       isSpeakingRef.current = false;
     };
-  }, [id]);
+  }, [rawId]);
 
   const setupAudio = async () => {
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
+      await setAudioModeAsync({
+        // Allow TTS to play even when the iOS ring/silent switch is off
+        playsInSilentMode: true,
+        // Keep audio active when app goes to background (e.g. screen off while listening)
+        shouldPlayInBackground: true,
+        // Mix with other audio (music apps) instead of ducking/pausing them
+        interruptionMode: 'mixWithOthers',
+        // Don't route through earpiece — use speaker
+        shouldRouteThroughEarpiece: false,
+        allowsRecording: false,
       });
-    } catch (error) {
-
+    } catch {
+      // Audio session setup is best-effort; expo-speech has its own fallback
     }
   };
 
   const loadDevotional = async () => {
+    if (!rawId) return;
     try {
       setLoading(true);
-      const data = await detailDevotional(id as string);
+      setError(null);
+      setRequiresPayment(false);
+      const data = await detailDevotional(rawId);
       setDevotional(data);
-      await checkSavedStatus(String(data.id));
-    } catch (error) {
+      if (data?.id) {
+        await checkSavedStatus(String(data.id));
+      }
+    } catch (err: any) {
+      const isPaywall =
+        err?.status === 402 ||
+        err?.status === 403 ||
+        err?.data?.requires_payment === true ||
+        String(err?.message || "").toLowerCase().includes("payment required");
 
+      if (isPaywall) {
+        setRequiresPayment(true);
+        setShowSubscriptionModal(true);
+      } else {
+        // console.error("Error loading devotional details:", err);
+      }
+      const msg = ApiError.getMessage(err);
+      setError(msg || "Unable to load devotional.");
     } finally {
       setLoading(false);
     }
@@ -238,13 +267,17 @@ const DevotionalDetail = () => {
 
   const speakChunk = (index: number) => {
     if (index >= chunksRef.current.length) {
+      // All chunks done
       setIsSpeaking(false);
+      setIsPaused(false);
+      setCurrentChunkIndex(0);
       isSpeakingRef.current = false;
+      isPausedRef.current = false;
       return;
     }
 
     setCurrentChunkIndex(index);
-    
+
     Speech.speak(chunksRef.current[index], {
       language: 'en-US',
       pitch: 1.0,
@@ -254,14 +287,19 @@ const DevotionalDetail = () => {
         isSpeakingRef.current = true;
       },
       onDone: () => {
+        // Only advance if we're still meant to be speaking and not paused
         if (isSpeakingRef.current && !isPausedRef.current) {
           speakChunk(index + 1);
         }
       },
-      onError: (err) => {
+      onStopped: () => {
+        // Called when Speech.stop() is used (Android & iOS)
+        // Don't auto-advance — let the user control it
+      },
+      onError: () => {
         setIsSpeaking(false);
         isSpeakingRef.current = false;
-      }
+      },
     });
   };
 
@@ -269,6 +307,7 @@ const DevotionalDetail = () => {
     if (!devotional) return;
 
     if (isSpeaking && !isPaused) {
+      // Pause
       if (Platform.OS === 'android') {
         Speech.stop();
       } else {
@@ -277,21 +316,28 @@ const DevotionalDetail = () => {
       setIsPaused(true);
       isPausedRef.current = true;
     } else if (isSpeaking && isPaused) {
+      // Resume
+      setIsPaused(false);
+      isPausedRef.current = false;
       if (Platform.OS === 'android') {
         speakChunk(currentChunkIndex);
       } else {
         Speech.resume();
       }
-      setIsPaused(false);
-      isPausedRef.current = false;
     } else {
-      // Start fresh
+      // Start fresh — re-activate audio session first
+      await setupAudio();
       Speech.stop();
+      await new Promise(r => setTimeout(r, 150)); // let audio session settle
+
       const newChunks = getFullTextChunks();
+      if (newChunks.length === 0) return;
+
       chunksRef.current = newChunks;
       isSpeakingRef.current = true;
       isPausedRef.current = false;
       setIsPaused(false);
+      setCurrentChunkIndex(0);
       speakChunk(0);
     }
   };
@@ -315,16 +361,85 @@ const DevotionalDetail = () => {
   }
 
   if (!devotional) {
+    if (requiresPayment) {
+      return (
+        <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center px-6">
+          <StatusBar style="light" />
+          <View className="w-20 h-20 bg-pink-500/10 rounded-full items-center justify-center mb-6 border border-[#E94B7B]/30">
+            <Ionicons name="lock-closed" size={40} color="#E94B7B" />
+          </View>
+          <Text className="text-white text-2xl font-bold text-center mb-2">
+            Subscription Required
+          </Text>
+          <Text className="text-slate-400 text-base text-center leading-6 mb-8 px-2">
+            This devotional is reserved for premium members. Subscribe now to unlock unlimited access to daily devotionals, audio recordings, and archives.
+          </Text>
+
+          <View className="w-full space-y-3 gap-3">
+            <TouchableOpacity
+              className="w-full bg-[#E94B7B] py-4 rounded-2xl items-center justify-center shadow-lg"
+              onPress={() => setShowSubscriptionModal(true)}
+              activeOpacity={0.8}
+            >
+              <Text className="text-white font-bold text-base">
+                Subscribe to Unlock
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="w-full py-4 rounded-2xl items-center justify-center bg-slate-800"
+              onPress={() => router.back()}
+              activeOpacity={0.8}
+            >
+              <Text className="text-slate-300 font-semibold text-base">
+                Go Back
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <SubscriptionModal
+            visible={showSubscriptionModal}
+            onClose={() => {
+              setShowSubscriptionModal(false);
+              loadDevotional();
+            }}
+          />
+        </SafeAreaView>
+      );
+    }
+
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center">
+      <SafeAreaView className="flex-1 bg-white items-center justify-center px-6">
         <Ionicons name="alert-circle-outline" size={64} color="#999" />
-        <Text className="text-gray-500 text-lg mt-4">Devotional not found</Text>
-        <TouchableOpacity
-          className="mt-4 bg-[#E94B7B] px-6 py-3 rounded-full"
-          onPress={() => router.back()}
-        >
-          <Text className="text-white font-semibold">Go Back</Text>
-        </TouchableOpacity>
+        <Text className="text-gray-800 text-lg font-bold mt-4 text-center">
+          Devotional not found
+        </Text>
+        {error ? (
+          <Text className="text-gray-500 text-sm mt-2 text-center px-4">
+            {error}
+          </Text>
+        ) : null}
+        <View className="flex-row items-center gap-3 mt-6">
+          <TouchableOpacity
+            className="bg-gray-100 px-6 py-3 rounded-full"
+            onPress={() => router.back()}
+          >
+            <Text className="text-gray-700 font-semibold">Go Back</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="bg-[#E94B7B] px-6 py-3 rounded-full"
+            onPress={loadDevotional}
+          >
+            <Text className="text-white font-semibold">Try Again</Text>
+          </TouchableOpacity>
+        </View>
+        <SubscriptionModal
+          visible={showSubscriptionModal}
+          onClose={() => {
+            setShowSubscriptionModal(false);
+            loadDevotional();
+          }}
+        />
       </SafeAreaView>
     );
   }
@@ -333,7 +448,7 @@ const DevotionalDetail = () => {
     <SafeAreaView className="flex-1 bg-gray-50">
       <StatusBar style="dark" />
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
+      <View className="flex-row items-center  justify-between px-4 py-3 bg-white border-b border-gray-200">
         <TouchableOpacity onPress={() => {
           Speech.stop();
           router.back();
@@ -379,7 +494,7 @@ const DevotionalDetail = () => {
         </View>
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 pt-6" showsVerticalScrollIndicator={false}>
         {/* Hero Image */}
         <Image
           source={getFallbackImage(devotional.date)}
@@ -637,6 +752,14 @@ const DevotionalDetail = () => {
         message={alertConfig.message}
         type={alertConfig.type}
         onClose={() => setAlertVisible(false)}
+      />
+
+      <SubscriptionModal
+        visible={showSubscriptionModal}
+        onClose={() => {
+          setShowSubscriptionModal(false);
+          loadDevotional();
+        }}
       />
     </SafeAreaView>
   );

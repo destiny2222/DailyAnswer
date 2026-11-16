@@ -15,6 +15,7 @@ import {
   RefreshControl,
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
+import { CustomInput, CustomButton } from "../../components";
 import { ApiError, apiRequest } from "../../utils/api";
 import { useGlobalContext } from "../../utils/auth";
 import TurnstileWidget from "../../components/TurnstileWidget";
@@ -86,7 +87,7 @@ const Login = () => {
     try {
       setLoading(true);
 
-      const response = await apiRequest<LoginResponse>("/login", {
+      const response = await apiRequest<LoginResponse>("/auth/login", {
         method: "POST",
         body: {
           email,
@@ -166,7 +167,7 @@ const Login = () => {
 
     try {
       setLoading(true);
-      const response = await apiRequest<LoginVerifyResponse>("/verify-login-otp", {
+      const response = await apiRequest<LoginVerifyResponse>("/auth/verify-login-otp", {
         method: "POST",
         body: { email, otp },
         auth: false,
@@ -206,7 +207,7 @@ const Login = () => {
 
     try {
       setLoading(true);
-      await apiRequest("/resend-otp", {
+      await apiRequest("/auth/resend-otp", {
         method: "POST",
         body: { email, type: "login" },
         auth: false,
@@ -291,58 +292,29 @@ const Login = () => {
             {step === "form" ? (
               <>
                 {/* Email Input */}
-                <View className="mb-4">
-                  <Text className="text-white/80 text-sm font-semibold mb-2">
-                    Email Address
-                  </Text>
-                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                    <Ionicons name="mail-outline" size={20} color="#9CA3AF" />
-                    <TextInput
-                      value={email}
-                      onChangeText={setEmail}
-                      placeholder="Enter your email"
-                      placeholderTextColor="#9CA3AF"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoComplete="email"
-                      className="flex-1 ml-3 text-white text-base"
-                    />
-                  </View>
-                </View>
+                <CustomInput
+                  label="Email Address"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Enter your email"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  leftIcon="mail-outline"
+                />
 
                 {/* Password Input */}
-                <View className="mb-6">
-                  <Text className="text-white/80 text-sm font-semibold mb-2">
-                    Password
-                  </Text>
-                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                    <Ionicons
-                      name="lock-closed-outline"
-                      size={20}
-                      color="#9CA3AF"
-                    />
-                    <TextInput
-                      value={password}
-                      onChangeText={setPassword}
-                      placeholder="Enter your password"
-                      placeholderTextColor="#9CA3AF"
-                      secureTextEntry={!showPassword}
-                      autoCapitalize="none"
-                      autoComplete="password"
-                      className="flex-1 ml-3 text-white text-base"
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword(!showPassword)}
-                      className="ml-2"
-                    >
-                      <Ionicons
-                        name={showPassword ? "eye-outline" : "eye-off-outline"}
-                        size={20}
-                        color="#9CA3AF"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                <CustomInput
+                  label="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Enter your password"
+                  isPassword
+                  autoCapitalize="none"
+                  autoComplete="password"
+                  leftIcon="lock-closed-outline"
+                  containerClassName="mb-6"
+                />
 
                 {/* Forgot Password */}
                 <TouchableOpacity
@@ -357,18 +329,12 @@ const Login = () => {
                 <TurnstileWidget onVerify={setRecaptchaToken} />
 
                 {/* Login Button */}
-                <TouchableOpacity
+                <CustomButton
+                  title="Sign In"
                   onPress={handleLogin}
-                  disabled={loading}
-                  activeOpacity={0.8}
-                  className="mb-6 rounded-2xl bg-[#E94B7B] py-4 items-center justify-center"
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text className="text-white text-lg font-bold">Sign In</Text>
-                  )}
-                </TouchableOpacity>
+                  loading={loading}
+                  className="mb-6"
+                />
               </>
             ) : (
               <>
@@ -394,20 +360,13 @@ const Login = () => {
                   </View>
                 </View>
 
-                <TouchableOpacity
+                <CustomButton
+                  title="Verify OTP"
                   onPress={handleVerifyLoginOtp}
+                  loading={loading}
                   disabled={loading || otp.length < 6}
-                  activeOpacity={0.8}
-                  className={`mb-6 rounded-2xl py-4 items-center justify-center ${otp.length === 6 ? 'bg-[#E94B7B]' : 'bg-slate-800'}`}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text className="text-white text-lg font-bold">
-                      Verify OTP
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                  className="mb-6"
+                />
 
                 <View className="flex-row justify-center items-center mb-6">
                   <Text className="text-white/60 text-base">Didn&apos;t receive code? </Text>
@@ -420,29 +379,8 @@ const Login = () => {
                     </Text>
                   </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity 
-                  onPress={() => setStep("form")} 
-                  className="items-center py-2"
-                >
-                  <Text className="text-white/60 text-sm">Change Credentials</Text>
-                </TouchableOpacity>
               </>
             )}
-
-            {/* Sign Up Link */}
-            <View className="flex-row items-center justify-center pb-8 mt-4">
-              <Text className="text-white/60 text-base">
-                Don&apos;t have an account?{" "}
-              </Text>
-              <Link href="/(auth)/signup" asChild>
-                <TouchableOpacity>
-                  <Text className="text-[#E94B7B] text-base font-semibold">
-                    Sign Up
-                  </Text>
-                </TouchableOpacity>
-              </Link>
-            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

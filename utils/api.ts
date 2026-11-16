@@ -1,7 +1,18 @@
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 import { logger } from "./logger";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+const BASE_URL = (() => {
+  const url = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
+  if (!url) return url;
+
+  // In development, Android emulator can't reach 127.0.0.1 (that's itself).
+  // Replace it with 10.0.2.2 which is the Android emulator's alias for the host machine.
+  if (__DEV__ && Platform.OS === "android") {
+    return url.replace("127.0.0.1", "10.0.2.2").replace("https://", "http://");
+  }
+  return url;
+})();
 
 if (!BASE_URL) {
   throw new Error("Missing EXPO_PUBLIC_API_BASE_URL in your env");
@@ -55,6 +66,46 @@ async function getAccessToken() {
     // logger.error("Error retrieving access token:", error);
     return null;
   }
+}
+
+/**
+ * Pull the most useful message out of a failed API response.
+ * Laravel uses `message`, `error`, or `errors` depending on the failure.
+ */
+function extractErrorMessage(data: unknown, status: number): string {
+  if (data && typeof data === "object") {
+    const payload = data as Record<string, unknown>;
+
+    if (typeof payload.message === "string" && payload.message.trim()) {
+      return payload.message;
+    }
+
+    if (typeof payload.error === "string" && payload.error.trim()) {
+      return payload.error;
+    }
+
+    const errors = payload.errors;
+    if (Array.isArray(errors)) {
+      const messages = errors.filter(
+        (item): item is string => typeof item === "string" && item.trim() !== "",
+      );
+      if (messages.length) return messages.join(", ");
+    } else if (errors && typeof errors === "object") {
+      const messages = Object.values(errors as Record<string, unknown>)
+        .flat()
+        .filter(
+          (item): item is string => typeof item === "string" && item.trim() !== "",
+        );
+      if (messages.length) return messages.join(", ");
+    }
+  }
+
+  // Fall back to a plain-text body (ignore HTML error pages)
+  if (typeof data === "string" && data.trim() && !data.trim().startsWith("<")) {
+    return data.trim();
+  }
+
+  return `Request failed (${status})`;
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -114,10 +165,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     }
 
     if (!res.ok) {
-      const message =
-        data && typeof data === "object" && "message" in data
-          ? String(data.message)
-          : `Request failed (${res.status})`;
+      const message = extractErrorMessage(data, res.status);
 
       // logger.error(`[API ERROR] ${method} ${path} (${res.status}):`, message);
       throw new ApiError(message, res.status, data);

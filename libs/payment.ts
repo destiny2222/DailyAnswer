@@ -30,7 +30,10 @@ export interface PaymentStatusResponse {
 }
 
 export interface Plan {
+  /** Public plan identifier (e.g. "plan_standard_quarterly") used for labels. */
   id: string;
+  /** Database row id the API expects when creating a subscription. */
+  serverId?: string;
   name: string;
   price: number;
   currency: string;
@@ -95,7 +98,7 @@ export interface CancelSupportResponse {
  */
 export async function getSubscriptionPlans(): Promise<Plan[]> {
   try {
-    const response = await apiRequest<PlansResponse>("/payment/plans", {
+    const response = await apiRequest<PlansResponse>("/users/payment/plans", {
       method: "GET",
       auth: true,
     });
@@ -110,7 +113,7 @@ export async function getSubscriptionPlans(): Promise<Plan[]> {
 export async function getSupportPlans(): Promise<RecurringSupportPlan[]> {
   try {
     const response = await apiRequest<RecurringSupportPlansResponse>(
-      "/payment/recurring-support-plans",
+      "/users/payment/recurring-support-plans",
       {
         method: "GET",
         auth: true,
@@ -136,7 +139,7 @@ export async function createSubscription(
 ): Promise<CreateSubscriptionResponse> {
   try {
     const response = await apiRequest<CreateSubscriptionResponse>(
-      "/payment/create-subscription",
+      "/users/payment/create-subscription",
       {
         method: "POST",
         body: { plan_id: planId },
@@ -159,7 +162,7 @@ export async function createSupport(
 ): Promise<CreateSupportResponse> {
   try {
     const response = await apiRequest<CreateSupportResponse>(
-      "/payment/create-support",
+      "/users/payment/create-support",
       {
         method: "POST",
         body: {
@@ -185,7 +188,7 @@ export async function confirmRecurringSupport(
 ): Promise<ConfirmRecurringSupportResponse> {
   try {
     const response = await apiRequest<ConfirmRecurringSupportResponse>(
-      "/payment/confirm-recurring-support",
+      "/users/payment/confirm-recurring-support",
       {
         method: "POST",
         body: {
@@ -209,7 +212,7 @@ export async function cancelRecurringSupport(
 ): Promise<CancelSupportResponse> {
   try {
     const response = await apiRequest<CancelSupportResponse>(
-      "/payment/cancel-recurring-support",
+      "/users/payment/cancel-recurring-support",
       {
         method: "POST",
         body: { subscription_id: subscriptionId },
@@ -228,7 +231,7 @@ export async function cancelRecurringSupport(
 export async function createPaymentIntent(): Promise<string> {
   try {
     const response = await apiRequest<PaymentIntentResponse>(
-      "/payment/create-intent",
+      "/users/payment/create-intent",
       { method: "POST", auth: true },
     );
     return response.clientSecret;
@@ -245,7 +248,7 @@ export async function confirmPayment(
 ): Promise<ConfirmPaymentResponse> {
   try {
     const response = await apiRequest<ConfirmPaymentResponse>(
-      "/payment/confirm",
+      "/users/payment/confirm",
       {
         method: "POST",
         body: { payment_intent_id: paymentIntentId },
@@ -264,7 +267,7 @@ export async function confirmPayment(
 export async function checkPaymentStatus(): Promise<PaymentStatusResponse> {
   try {
     const response = await apiRequest<PaymentStatusResponse>(
-      "/payment/status",
+      "/users/payment/status",
       { method: "GET", auth: true },
     );
     return response;

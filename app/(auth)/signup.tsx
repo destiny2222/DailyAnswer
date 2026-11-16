@@ -15,6 +15,7 @@ import {
   RefreshControl,
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
+import { CustomInput, CustomButton } from "../../components";
 import { ApiError, apiRequest } from "../../utils/api";
 import TurnstileWidget from "../../components/TurnstileWidget";
 import { useGlobalContext } from "../../utils/auth";
@@ -119,7 +120,7 @@ const SignUp = () => {
     try {
       setLoading(true);
 
-      const response = await apiRequest<RegisterResponse>("/register", {
+      const response = await apiRequest<RegisterResponse>("/auth/register", {
         method: "POST",
         body: {
           name: fullName,
@@ -197,7 +198,7 @@ const SignUp = () => {
 
     try {
       setLoading(true);
-      const response = await apiRequest<RegistrationVerifyResponse>("/verify-registration-otp", {
+      const response = await apiRequest<RegistrationVerifyResponse>("/auth/verify-registration-otp", {
         method: "POST",
         body: { email, otp },
         auth: false,
@@ -236,7 +237,7 @@ const SignUp = () => {
 
     try {
       setLoading(true);
-      await apiRequest("/resend-otp", {
+      await apiRequest("/auth/resend-otp", {
         method: "POST",
         body: { email, type: "registration" },
         auth: false,
@@ -318,169 +319,84 @@ const SignUp = () => {
             {step === "form" ? (
               <>
                 {/* Full Name Input */}
-                <View className="mb-4">
-                  <Text className="text-white/80 text-sm font-semibold mb-2">
-                    Full Name
-                  </Text>
-                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                    <Ionicons name="person-outline" size={20} color="#9CA3AF" />
-                    <TextInput
-                      value={fullName}
-                      onChangeText={setFullName}
-                      placeholder="Enter your fullname"
-                      placeholderTextColor="#9CA3AF"
-                      autoCapitalize="none"
-                      autoComplete="name"
-                      className="flex-1 ml-3 text-white text-base tracking-tighter p-0"
-                    />
-                  </View>
-                </View>
+                <CustomInput
+                  label="Full Name"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  placeholder="Enter your fullname"
+                  autoCapitalize="none"
+                  autoComplete="name"
+                  leftIcon="person-outline"
+                />
 
                 {/* Email Input */}
-                <View className="mb-4">
-                  <Text className="text-white/80 text-sm font-semibold mb-2">
-                    Email Address
-                  </Text>
-                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                    <Ionicons name="mail-outline" size={20} color="#9CA3AF" />
-                    <TextInput
-                      value={email}
-                      onChangeText={setEmail}
-                      placeholder="Enter your email"
-                      placeholderTextColor="#9CA3AF"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoComplete="email"
-                      className="flex-1 ml-3 text-white text-base"
-                    />
-                  </View>
-                </View>
+                <CustomInput
+                  label="Email Address"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Enter your email"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  leftIcon="mail-outline"
+                />
 
                 {/* Phone Input */}
-                <View className="mb-4">
-                  <Text className="text-white/80 text-sm font-semibold mb-2">
-                    Phone Number (Optional)
-                  </Text>
-                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                    <Ionicons name="call-outline" size={20} color="#9CA3AF" />
-                    <TextInput
-                      value={phone}
-                      onChangeText={setPhone}
-                      placeholder="+1234567890"
-                      placeholderTextColor="#9CA3AF"
-                      keyboardType="phone-pad"
-                      autoComplete="tel"
-                      textContentType="telephoneNumber"
-                      className="flex-1 ml-3 text-white text-base"
-                    />
-                  </View>
-                </View>
+                <CustomInput
+                  label="Phone Number (Optional)"
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder="+1234567890"
+                  keyboardType="phone-pad"
+                  autoComplete="tel"
+                  textContentType="telephoneNumber"
+                  leftIcon="call-outline"
+                />
 
                 {/* Password Input */}
-                <View className="mb-4">
-                  <Text className="text-white/80 text-sm font-semibold mb-2">
-                    Password
-                  </Text>
-                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                    <Ionicons
-                      name="lock-closed-outline"
-                      size={20}
-                      color="#9CA3AF"
-                    />
-                    <TextInput
-                      value={password}
-                      onChangeText={setPassword}
-                      placeholder="Create a password"
-                      placeholderTextColor="#9CA3AF"
-                      secureTextEntry={!showPassword}
-                      autoCapitalize="none"
-                      autoComplete="password-new"
-                      className="flex-1 ml-3 text-white text-base"
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword(!showPassword)}
-                      className="ml-2"
-                    >
-                      <Ionicons
-                        name={showPassword ? "eye-outline" : "eye-off-outline"}
-                        size={20}
-                        color="#9CA3AF"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                <CustomInput
+                  label="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Create a password"
+                  isPassword
+                  autoCapitalize="none"
+                  autoComplete="password-new"
+                  leftIcon="lock-closed-outline"
+                />
 
                 {/* Confirm Password Input */}
-                <View className="mb-4">
-                  <Text className="text-white/80 text-sm font-semibold mb-2">
-                    Confirm Password
-                  </Text>
-                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                    <Ionicons
-                      name="lock-closed-outline"
-                      size={20}
-                      color="#9CA3AF"
-                    />
-                    <TextInput
-                      value={confirmPassword}
-                      onChangeText={setConfirmPassword}
-                      placeholder="Re-enter your password"
-                      placeholderTextColor="#9CA3AF"
-                      secureTextEntry={!showConfirmPassword}
-                      autoCapitalize="none"
-                      autoComplete="password-new"
-                      className="flex-1 ml-3 text-white text-base"
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="ml-2"
-                    >
-                      <Ionicons
-                        name={
-                          showConfirmPassword ? "eye-outline" : "eye-off-outline"
-                        }
-                        size={20}
-                        color="#9CA3AF"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
+                <CustomInput
+                  label="Confirm Password"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Re-enter your password"
+                  isPassword
+                  autoCapitalize="none"
+                  autoComplete="password-new"
+                  leftIcon="lock-closed-outline"
+                />
 
                 {/* Referral Code Input */}
-                <View className="mb-6">
-                  <Text className="text-white/80 text-sm font-semibold mb-2">
-                    Referral Code (Optional)
-                  </Text>
-                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                    <Ionicons name="gift-outline" size={20} color="#9CA3AF" />
-                    <TextInput
-                      value={referralCode}
-                      onChangeText={setReferralCode}
-                      placeholder="Enter referral code"
-                      placeholderTextColor="#9CA3AF"
-                      autoCapitalize="characters"
-                      className="flex-1 ml-3 text-white text-base"
-                    />
-                  </View>
-                </View>
+                <CustomInput
+                  label="Referral Code (Optional)"
+                  value={referralCode}
+                  onChangeText={setReferralCode}
+                  placeholder="Enter referral code"
+                  autoCapitalize="characters"
+                  leftIcon="gift-outline"
+                  containerClassName="mb-6"
+                />
 
                 <TurnstileWidget onVerify={setRecaptchaToken} />
 
                 {/* Sign Up Button */}
-                <TouchableOpacity
+                <CustomButton
+                  title="Create Account"
                   onPress={handleSignUp}
-                  disabled={loading}
-                  activeOpacity={0.8}
-                  className="mb-6 rounded-2xl bg-[#E94B7B] py-4 items-center justify-center"
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text className="text-white text-lg font-bold">
-                      Create Account
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                  loading={loading}
+                  className="mb-6"
+                />
               </>
             ) : (
               <>
@@ -506,20 +422,13 @@ const SignUp = () => {
                   </View>
                 </View>
 
-                <TouchableOpacity
+                <CustomButton
+                  title="Verify OTP"
                   onPress={handleVerifyRegistrationOtp}
+                  loading={loading}
                   disabled={loading || otp.length < 6}
-                  activeOpacity={0.8}
-                  className={`mb-6 rounded-2xl py-4 items-center justify-center ${otp.length === 6 ? 'bg-[#E94B7B]' : 'bg-slate-800'}`}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text className="text-white text-lg font-bold">
-                      Verify OTP
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                  className="mb-6"
+                />
 
                 <View className="flex-row justify-center items-center mb-6">
                   <Text className="text-white/60 text-base">Didn&apos;t receive code? </Text>
@@ -532,18 +441,11 @@ const SignUp = () => {
                     </Text>
                   </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity 
-                  onPress={() => setStep("form")} 
-                  className="items-center py-2"
-                >
-                  <Text className="text-white/60 text-sm">Change Email</Text>
-                </TouchableOpacity>
               </>
             )}
 
             {/* Login Link */}
-            <View className="flex-row items-center justify-center pb-8 mt-4">
+            <View className="flex-row items-center justify-center pb-8 mt-1">
               <Text className="text-white/60 text-base">
                 Already have an account?{" "}
               </Text>

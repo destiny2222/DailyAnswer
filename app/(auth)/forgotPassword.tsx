@@ -12,6 +12,7 @@ import {
   ScrollView,
 } from "react-native";
 import CustomAlert from "../../components/CustomAlert";
+import { CustomInput, CustomButton } from "../../components";
 import { apiRequest } from "../../utils/api";
 import TurnstileWidget from "../../components/TurnstileWidget";
 import { useOtpAutoFill } from "../../utils/useOtpAutoFill";
@@ -59,7 +60,7 @@ const ForgotPassword = () => {
     try {
       setLoading(true);
       const response = await apiRequest<{ success: boolean; message: string }>(
-        "/send-reset-otp",
+        "/auth/send-reset-otp",
         {
           method: "POST",
           body: { 
@@ -119,7 +120,7 @@ const ForgotPassword = () => {
     try {
       setLoading(true);
       const response = await apiRequest<{ success: boolean; message: string }>(
-        "/reset-password",
+        "/auth/reset-password",
         {
           method: "POST",
           body: {
@@ -203,128 +204,68 @@ const ForgotPassword = () => {
           <View className="flex-1 px-6">
             {step === "email" ? (
               <>
-                <View className="mb-4">
-                  <Text className="text-white/80 text-sm font-semibold mb-2">
-                    Email Address
-                  </Text>
-                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                    <Ionicons name="mail-outline" size={20} color="#9CA3AF" />
-                    <TextInput
-                      value={email}
-                      onChangeText={setEmail}
-                      placeholder="Enter your email"
-                      placeholderTextColor="#9CA3AF"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoComplete="email"
-                      className="flex-1 ml-3 text-white text-base"
-                    />
-                  </View>
-                </View>
+                <CustomInput
+                  label="Email Address"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Enter your email"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  leftIcon="mail-outline"
+                />
 
                 <TurnstileWidget onVerify={setRecaptchaToken} />
 
-                <TouchableOpacity
+                <CustomButton
+                  title="Send OTP"
                   onPress={handleSendOtp}
-                  disabled={loading}
-                  activeOpacity={0.8}
-                  className="mb-6 rounded-2xl bg-[#E94B7B] py-4 items-center justify-center"
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text className="text-white text-lg font-bold">Send OTP</Text>
-                  )}
-                </TouchableOpacity>
+                  loading={loading}
+                  className="mb-6"
+                />
               </>
             ) : (
               <>
-                <View className="mb-4">
-                  <Text className="text-white/80 text-sm font-semibold mb-2">
-                    OTP Code
-                  </Text>
-                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                    <Ionicons name="key-outline" size={20} color="#9CA3AF" />
-                    <TextInput
-                      value={otp}
-                      onChangeText={setOtp}
-                      placeholder="Enter the OTP code"
-                      placeholderTextColor="#9CA3AF"
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      textContentType="oneTimeCode"
-                      autoComplete="one-time-code"
-                      autoFocus={true}
-                      className="flex-1 ml-3 text-white text-base"
-                    />
-                  </View>
-                </View>
-                <View className="mb-4">
-                  <Text className="text-white/80 text-sm font-semibold mb-2">
-                    New Password
-                  </Text>
-                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                    <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />
-                    <TextInput
-                      value={password}
-                      onChangeText={setPassword}
-                      placeholder="Enter new password"
-                      placeholderTextColor="#9CA3AF"
-                      secureTextEntry={!showPassword}
-                      autoCapitalize="none"
-                      className="flex-1 ml-3 text-white text-base"
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword((prev) => !prev)}
-                      className="ml-2"
-                    >
-                      <Ionicons
-                        name={showPassword ? "eye-outline" : "eye-off-outline"}
-                        size={20}
-                        color="#9CA3AF"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                <View className="mb-6">
-                  <Text className="text-white/80 text-sm font-semibold mb-2">
-                    Confirm Password
-                  </Text>
-                  <View className="bg-slate-800 rounded-2xl px-4 py-4 flex-row items-center">
-                    <Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />
-                    <TextInput
-                      value={passwordConfirmation}
-                      onChangeText={setPasswordConfirmation}
-                      placeholder="Confirm new password"
-                      placeholderTextColor="#9CA3AF"
-                      secureTextEntry={!showConfirmPassword}
-                      autoCapitalize="none"
-                      className="flex-1 ml-3 text-white text-base"
-                    />
-                    <TouchableOpacity
-                      onPress={() => setShowConfirmPassword((prev) => !prev)}
-                      className="ml-2"
-                    >
-                      <Ionicons
-                        name={showConfirmPassword ? "eye-outline" : "eye-off-outline"}
-                        size={20}
-                        color="#9CA3AF"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                <TouchableOpacity
+                <CustomInput
+                  label="OTP Code"
+                  value={otp}
+                  onChangeText={setOtp}
+                  placeholder="Enter the OTP code"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  textContentType="oneTimeCode"
+                  autoComplete="one-time-code"
+                  autoFocus={true}
+                  leftIcon="key-outline"
+                />
+
+                <CustomInput
+                  label="New Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Enter new password"
+                  isPassword
+                  autoCapitalize="none"
+                  leftIcon="lock-closed-outline"
+                />
+
+                <CustomInput
+                  label="Confirm Password"
+                  value={passwordConfirmation}
+                  onChangeText={setPasswordConfirmation}
+                  placeholder="Confirm new password"
+                  isPassword
+                  autoCapitalize="none"
+                  leftIcon="lock-closed-outline"
+                  containerClassName="mb-6"
+                />
+
+                <CustomButton
+                  title="Reset Password"
                   onPress={handleResetPassword}
-                  disabled={loading}
-                  activeOpacity={0.8}
-                  className="mb-6 rounded-2xl bg-[#E94B7B] py-4 items-center justify-center"
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text className="text-white text-lg font-bold">Reset Password</Text>
-                  )}
-                </TouchableOpacity>
+                  loading={loading}
+                  className="mb-6"
+                />
               </>
             )}
           </View>

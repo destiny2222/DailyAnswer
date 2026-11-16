@@ -14,12 +14,12 @@ type NoteResponse = {
 };
 
 export const getNotes = async (): Promise<Note[]> => {
-  const response = (await apiRequest("/notes")) as NoteResponse;
+  const response = (await apiRequest("/users/notes")) as NoteResponse;
   return response.data;
 };
 
 export const getNote = async (id: number): Promise<Note> => {
-  const response = (await apiRequest(`/notes/${id}/show`)) as Note;
+  const response = (await apiRequest(`/users/notes/${id}/show`)) as Note;
   return response;
 };
 
@@ -27,7 +27,7 @@ export const createNote = (data: {
   title: string;
   content: string;
 }): Promise<Note> => {
-  return apiRequest("/notes/store", {
+  return apiRequest("/users/notes/store", {
     method: "POST",
     body: data,
     auth: true,
@@ -38,7 +38,7 @@ export const updateNote = (id: number, data: {
   title: string;
   content: string;
 }): Promise<Note> => {
-  return apiRequest(`/notes/${id}/update`, {
+  return apiRequest(`/users/notes/${id}/update`, {
     method: "PUT",
     body: data,
     auth: true,
@@ -46,7 +46,7 @@ export const updateNote = (id: number, data: {
 };
 
 export const deleteNote = (id: number): Promise<void> => {
-  return apiRequest(`/notes/${id}/delete`, {
+  return apiRequest(`/users/notes/${id}/delete`, {
     method: "DELETE",
     auth: true,
   });

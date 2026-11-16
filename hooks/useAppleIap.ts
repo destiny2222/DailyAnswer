@@ -1,41 +1,57 @@
-import { useCallback, useEffect, useRef } from "react";
-import { useIAP } from "expo-iap";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert } from "react-native";
+import { useIAP, getAvailablePurchases as getAvailablePurchasesRoot } from "expo-iap";
 import type { Purchase } from "expo-iap";
 import { apiRequest } from "@/utils/api";
 import { useGlobalContext } from "@/utils/auth";
 
 export const PRODUCT_ID_3MONTHS = "com.thedailyanswer.threemonths";
-export const PRODUCT_ID_MONTHLY = "com.thedailyanswer.monthly.subscription";
-export const PRODUCT_ID_YEARLY = "com.thedailyanswer.yearly";
 
 const SUBSCRIPTION_SKUS = [
   PRODUCT_ID_3MONTHS,
-  PRODUCT_ID_MONTHLY,
-  PRODUCT_ID_YEARLY,
 ];
 
 export interface AppleIapState {
   threeMonthsProduct: import("expo-iap").ProductSubscription | null;
   isLoading: boolean;
   isProcessing: boolean;
-  purchaseThreeMonths: () => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
-  restorePurchases: () => Promise<{ success: boolean; restored: boolean; error?: string }>;
+  purchaseThreeMonths: () => Promise<{
+    success: boolean;
+    cancelled?: boolean;
+    error?: string;
+  }>;
+  restorePurchases: () => Promise<{
+    success: boolean;
+    restored: boolean;
+    error?: string;
+  }>;
   refreshProducts: () => Promise<void>;
 }
 
 export const useAppleIap = (): AppleIapState => {
   const { refetchUser, setHasPaid } = useGlobalContext();
 
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [productsLoaded, setProductsLoaded] = useState(false);
+
   const purchasePromiseResolve = useRef<
     ((value: { success: boolean; cancelled?: boolean; error?: string }) => void) | null
   >(null);
   const activeProductId = useRef<string | null>(null);
-  const isProcessingRef = useRef(false);
 
-  // ─── Verify a purchase with the backend and finish the transaction ───────────
+  // We need finishTransaction inside the success callback, so we keep a ref
+  const finishTransactionRef = useRef<
+    ((params: { purchase: Purchase; isConsumable?: boolean }) => Promise<void>) | null
+  >(null);
+
   const verifyAndFinish = useCallback(
-    async (purchase: Purchase): Promise<{ success: boolean; error?: string }> => {
+    async (
+      purchase: Purchase,
+      isSim = false
+    ): Promise<{ success: boolean; error?: string }> => {
       const iosPurchase = purchase as any;
+
+      let backendSuccess = false;
 
       try {
         const response = await apiRequest<{ success: boolean; message?: string }>(
@@ -47,6 +63,7 @@ export const useAppleIap = (): AppleIapState => {
               original_transaction_id:
                 iosPurchase.originalTransactionIdentifierIOS ?? purchase.id,
               product_id: purchase.productId,
+              // purchaseToken is the JWS / receipt on modern StoreKit 2
               transaction_receipt: purchase.purchaseToken,
               transaction_date: purchase.transactionDate,
             },
@@ -54,173 +71,274 @@ export const useAppleIap = (): AppleIapState => {
           }
         );
 
-        await finishTransaction({ purchase, isConsumable: false });
+        backendSuccess = !!response.success;
 
-        if (response.success) {
+        // Only call finishTransaction for real (non-simulated) purchases
+        if (!isSim && finishTransactionRef.current) {
+          try {
+            await finishTransactionRef.current({
+              purchase,
+              isConsumable: false,
+            });
+          } catch {
+            // finishTransaction failing doesn't undo a successful server verification
+          }
+        }
+
+        if (backendSuccess) {
           await refetchUser();
           setHasPaid(true);
         }
 
         return {
-          success: response.success,
-          error: response.success
+          success: backendSuccess,
+          error: backendSuccess
             ? undefined
             : response.message || "Failed to verify subscription with server.",
         };
       } catch (e: any) {
-        // Always attempt to finish even if verification fails, to prevent
-        // the transaction from getting stuck in the queue.
-        try {
-          await finishTransaction({ purchase, isConsumable: false });
-        } catch {}
-        return { success: false, error: e?.message || "Server verification error." };
+        // If backend already succeeded but something else threw, still honour it
+        if (backendSuccess) {
+          await refetchUser().catch(() => {});
+          setHasPaid(true);
+          return { success: true };
+        }
+        // For real purchases: still try to finish so the transaction doesn't stay stuck
+        if (!isSim) {
+          try {
+            if (finishTransactionRef.current) {
+              await finishTransactionRef.current({
+                purchase,
+                isConsumable: false,
+              });
+            }
+          } catch {}
+        }
+        return {
+          success: false,
+          error: e?.message || "Server verification error.",
+        };
       }
     },
     [refetchUser, setHasPaid]
   );
 
-  // ─── useIAP hook — handles initConnection / endConnection / listeners ────────
+  const handleDevSimulatorFallback = useCallback(
+    (resolve: (value: { success: boolean; cancelled?: boolean; error?: string }) => void) => {
+      Alert.alert(
+        "Simulator Purchase Test",
+        "Apple StoreKit authentication was cancelled or rejected by the Simulator.\n\nWould you like to simulate a successful Apple purchase to test your backend verification?",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => {
+              resolve({ success: false, cancelled: true });
+            },
+          },
+          {
+            text: "Simulate & Verify Backend",
+            onPress: async () => {
+              try {
+                setIsProcessing(true);
+                const simPurchase: any = {
+                  id: "sim_" + Date.now(),
+                  transactionId: "sim_" + Date.now(),
+                  originalTransactionIdentifierIOS: "sim_orig_" + Date.now(),
+                  productId: PRODUCT_ID_3MONTHS,
+                  purchaseToken: "sim_storekit2_token_" + Date.now(),
+                  transactionDate: Date.now(),
+                };
+                const verifyResult = await verifyAndFinish(simPurchase, true);
+                resolve({
+                  success: verifyResult.success,
+                  error: verifyResult.error,
+                });
+              } catch (e: any) {
+                resolve({ success: false, error: e?.message });
+              } finally {
+                setIsProcessing(false);
+              }
+            },
+          },
+        ]
+      );
+    },
+    [verifyAndFinish]
+  );
+
   const {
     connected,
     subscriptions,
     fetchProducts,
     requestPurchase,
     finishTransaction,
-    getAvailablePurchases,
-    availablePurchases,
+    getActiveSubscriptions, // preferred for subscriptions when available
   } = useIAP({
     onPurchaseSuccess: async (purchase: Purchase) => {
-      console.log("[Apple IAP] purchaseUpdatedListener:", purchase);
+      // console.log("[Apple IAP] onPurchaseSuccess:", purchase.productId);
 
       const isCurrentRequest =
         activeProductId.current !== null &&
         purchase.productId === activeProductId.current;
 
-      isProcessingRef.current = true;
+      setIsProcessing(true);
 
       const result = await verifyAndFinish(purchase);
 
-      // Only resolve the waiting promise if this transaction belongs to
-      // the currently in-flight purchase request (not a stale replay).
       if (isCurrentRequest && purchasePromiseResolve.current) {
         purchasePromiseResolve.current(result);
         purchasePromiseResolve.current = null;
         activeProductId.current = null;
       }
 
-      isProcessingRef.current = false;
+      setIsProcessing(false);
     },
 
     onPurchaseError: (error: any) => {
-      console.warn("[Apple IAP] purchaseErrorListener:", error);
-      isProcessingRef.current = false;
+      // console.warn("[Apple IAP] onPurchaseError:", error);
+      setIsProcessing(false);
 
       const isCancelled =
-        error.code === "user-cancelled" ||
-        error.message?.toLowerCase().includes("user canceled") ||
-        error.message?.toLowerCase().includes("user cancelled") ||
-        error.message?.toLowerCase().includes("cancelled");
+        error?.code === "user-cancelled" ||
+        error?.code === "E_USER_CANCELLED" ||
+        error?.message?.toLowerCase?.().includes("cancel");
 
       if (purchasePromiseResolve.current) {
-        purchasePromiseResolve.current({
-          success: false,
-          cancelled: isCancelled,
-          error: isCancelled ? undefined : error.message || "Purchase failed.",
-        });
+        const resolve = purchasePromiseResolve.current;
         purchasePromiseResolve.current = null;
         activeProductId.current = null;
-      }
-    },
 
-    onError: (error: Error) => {
-      console.warn("[Apple IAP] hook error:", error);
-    },
-  });
-
-  // Derive the 3-month product from the subscriptions list managed by useIAP
-  const threeMonthsProduct =
-    subscriptions.find((p) => p.id === PRODUCT_ID_3MONTHS) ?? null;
-
-  // Add logging for state transitions
-  useEffect(() => {
-    console.log("========== APPLE IAP DEBUG ==========");
-    console.log("Connected:", connected);
-    console.log("Subscriptions:", subscriptions);
-    console.log("3 Month Product:", threeMonthsProduct);
-    console.log("=====================================");
-  }, [connected, subscriptions, threeMonthsProduct]);
-
-  // ─── Load subscription products ──────────────────────────────────────────────
-  const refreshProducts = useCallback(async () => {
-    try {
-      console.log("[Apple IAP] Fetching products...");
-      await fetchProducts({ skus: SUBSCRIPTION_SKUS, type: "subs" });
-      console.log("[Apple IAP] fetchProducts call completed successfully.");
-    } catch (err: any) {
-      console.error("[Apple IAP] fetchProducts ERROR:", err);
-    }
-  }, [fetchProducts]);
-
-  // ─── Trigger a subscription purchase ────────────────────────────────────────
-  const purchaseThreeMonths = useCallback(async (): Promise<{
-    success: boolean;
-    cancelled?: boolean;
-    error?: string;
-  }> => {
-    if (!threeMonthsProduct) {
-      return { success: false, error: "Product not loaded yet. Please try again." };
-    }
-
-    isProcessingRef.current = true;
-
-    return new Promise(async (resolve) => {
-      purchasePromiseResolve.current = resolve;
-      activeProductId.current = PRODUCT_ID_3MONTHS;
-
-      try {
-        await requestPurchase({
-          request: {
-            apple: { sku: PRODUCT_ID_3MONTHS },
-            google: { skus: [PRODUCT_ID_3MONTHS] },
-          },
-          type: "subs",
-        });
-      } catch (err: any) {
-        isProcessingRef.current = false;
-
-        const isCancelled =
-          err?.code === "user-cancelled" ||
-          err?.message?.toLowerCase().includes("user canceled") ||
-          err?.message?.toLowerCase().includes("user cancelled") ||
-          err?.message?.toLowerCase().includes("cancelled");
-
-        purchasePromiseResolve.current = null;
-        activeProductId.current = null;
+        if (__DEV__ && isCancelled) {
+          handleDevSimulatorFallback(resolve);
+          return;
+        }
 
         resolve({
           success: false,
           cancelled: isCancelled,
-          error: isCancelled ? undefined : err?.message || "Unable to start purchase.",
+          error: isCancelled ? undefined : error?.message || "Purchase failed.",
         });
       }
-    });
-  }, [threeMonthsProduct, requestPurchase]);
+    },
 
-  // ─── Restore previous purchases ──────────────────────────────────────────────
-  const restorePurchases = useCallback(async (): Promise<{
-    success: boolean;
-    restored: boolean;
-    error?: string;
-  }> => {
+    onError: (error: Error) => {
+      // console.warn("[Apple IAP] hook error:", error);
+    },
+  });
+
+  // Keep finishTransaction in a ref so verifyAndFinish can use the latest one
+  useEffect(() => {
+    finishTransactionRef.current = finishTransaction;
+  }, [finishTransaction]);
+
+  const threeMonthsProduct =
+    subscriptions.find((p) => p.id === PRODUCT_ID_3MONTHS) ?? null;
+
+  // ─── Auto-fetch products when connected ────────────────────────────────────
+  const refreshProducts = useCallback(async () => {
+    if (!connected) return;
     try {
-      isProcessingRef.current = true;
-      await getAvailablePurchases({ onlyIncludeActiveItemsIOS: true });
+      console.log("[Apple IAP] Fetching products...", SUBSCRIPTION_SKUS);
+      await fetchProducts({ skus: SUBSCRIPTION_SKUS, type: "subs" });
+      // Temporary debug – remove later
+      console.log("[Apple IAP] Raw subscriptions after fetch:", JSON.stringify(subscriptions, null, 2));
+      // console.log("[Apple IAP] Requested SKUs:", SUBSCRIPTION_SKUS);
+      setProductsLoaded(true);
+      // console.log("[Apple IAP] Products fetched");
+    } catch (err: any) {
+      // console.error("[Apple IAP] fetchProducts ERROR:", err);
+      setProductsLoaded(true); // still mark as attempted so UI can show error 
+    }
+  }, [connected, fetchProducts]);
 
-      const activeIap = availablePurchases.find(
+  useEffect(() => {
+    if (connected) {
+      refreshProducts();
+    }
+  }, [connected, refreshProducts]);
+
+  // Debug (remove in production)
+  useEffect(() => {
+    if (__DEV__) {
+      // console.log("========== APPLE IAP DEBUG ==========");
+      console.log("Connected:", connected);
+      console.log("Products loaded:", productsLoaded);
+      console.log("Subscriptions count:", subscriptions.length);
+      console.log("3 Month Product:", threeMonthsProduct?.id, threeMonthsProduct?.displayPrice);
+      console.log("=====================================");
+    }
+  }, [connected, productsLoaded, subscriptions, threeMonthsProduct]);
+
+  // ─── Purchase ──────────────────────────────────────────────────────────────
+  const purchaseThreeMonths = useCallback(async () => {
+    if (!threeMonthsProduct) {
+      return {
+        success: false,
+        error: "Product not loaded yet. Please try again in a moment.",
+      };
+    }
+    if (isProcessing) {
+      return { success: false, error: "A purchase is already in progress." };
+    }
+
+    setIsProcessing(true);
+
+    return new Promise<{ success: boolean; cancelled?: boolean; error?: string }>(
+      async (resolve) => {
+        purchasePromiseResolve.current = resolve;
+        activeProductId.current = PRODUCT_ID_3MONTHS;
+
+        try {
+          await requestPurchase({
+            request: {
+              apple: { sku: PRODUCT_ID_3MONTHS },
+              // Google needs offer tokens when you support Android later
+              google: { skus: [PRODUCT_ID_3MONTHS] },
+            },
+            type: "subs",
+          });
+          // Success/error will be delivered via onPurchaseSuccess / onPurchaseError
+        } catch (err: any) {
+          setIsProcessing(false);
+          purchasePromiseResolve.current = null;
+          activeProductId.current = null;
+
+          const isCancelled =
+            err?.code === "user-cancelled" ||
+            err?.code === "E_USER_CANCELLED" ||
+            err?.message?.toLowerCase?.().includes("cancel");
+
+          if (__DEV__ && isCancelled) {
+            handleDevSimulatorFallback(resolve);
+            return;
+          }
+
+          resolve({
+            success: false,
+            cancelled: isCancelled,
+            error: isCancelled
+              ? undefined
+              : err?.message || "Unable to start purchase.",
+          });
+        }
+      }
+    );
+  }, [threeMonthsProduct, isProcessing, requestPurchase]);
+
+  // ─── Restore ───────────────────────────────────────────────────────────────
+  const restorePurchases = useCallback(async () => {
+    try {
+      setIsProcessing(true);
+
+      // Prefer root API so we get the array immediately (no stale state)
+      const purchases = await getAvailablePurchasesRoot({
+        onlyIncludeActiveItemsIOS: true,
+      });
+
+      const activeIap = purchases.find(
         (p) =>
-          p.productId === PRODUCT_ID_3MONTHS ||
-          p.productId === PRODUCT_ID_MONTHLY ||
-          p.productId === PRODUCT_ID_YEARLY
+          p.productId === PRODUCT_ID_3MONTHS
       );
 
       if (activeIap) {
@@ -247,12 +365,12 @@ export const useAppleIap = (): AppleIapState => {
         }
       }
 
-      // Fallback: re-check subscription status from backend
+      // Fallback: trust your backend status
       await refetchUser();
-      const profile = await apiRequest<{ success: boolean; data: { has_paid: boolean } }>(
-        "/profile",
-        { auth: true }
-      );
+      const profile = await apiRequest<{
+        success: boolean;
+        data: { has_paid: boolean };
+      }>("/users/profile", { auth: true });
 
       if (profile?.data?.has_paid) {
         setHasPaid(true);
@@ -267,14 +385,14 @@ export const useAppleIap = (): AppleIapState => {
         error: err?.message || "Failed to restore purchases.",
       };
     } finally {
-      isProcessingRef.current = false;
+      setIsProcessing(false);
     }
-  }, [getAvailablePurchases, availablePurchases, refetchUser, setHasPaid]);
+  }, [refetchUser, setHasPaid]);
 
   return {
     threeMonthsProduct,
-    isLoading: !connected,
-    isProcessing: isProcessingRef.current,
+    isLoading: !connected || !productsLoaded,
+    isProcessing,
     purchaseThreeMonths,
     restorePurchases,
     refreshProducts,

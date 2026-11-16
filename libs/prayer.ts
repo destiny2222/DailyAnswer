@@ -37,7 +37,7 @@ const unwrapData = <T>(response: T | ApiDataResponse<T>): T => {
 
 export const getPrayers = async (): Promise<Prayer[]> => {
   try {
-    const response = await apiRequest<Prayer[] | ApiDataResponse<Prayer[]>>("/prayers");
+    const response = await apiRequest<Prayer[] | ApiDataResponse<Prayer[]>>("/users/prayers");
     return unwrapData(response);
   } catch (error) {
     throw error;
@@ -46,7 +46,7 @@ export const getPrayers = async (): Promise<Prayer[]> => {
 
 export const createPrayer = async (data: CreatePrayerData): Promise<Prayer> => {
   try {
-    const response = await apiRequest<Prayer | ApiDataResponse<Prayer>>("/prayers/store", {
+    const response = await apiRequest<Prayer | ApiDataResponse<Prayer>>("/users/prayers/store", {
       method: "POST",
       body: data,
     });
@@ -60,7 +60,7 @@ export const updatePrayer = async (
   id: number,
   data: UpdatePrayerData,
 ): Promise<Prayer> => {
-  const response = await apiRequest<Prayer | ApiDataResponse<Prayer>>(`/prayers/${id}/update`, {
+  const response = await apiRequest<Prayer | ApiDataResponse<Prayer>>(`/users/prayers/${id}/update`, {
     method: "PUT",
     body: data,
   });
@@ -69,7 +69,7 @@ export const updatePrayer = async (
 
 export const showPrayer = async (id: number): Promise<Prayer> => {
   try {
-    const response = await apiRequest<Prayer | ApiDataResponse<Prayer>>(`/prayers/${id}/show`);
+    const response = await apiRequest<Prayer | ApiDataResponse<Prayer>>(`/users/prayers/${id}/show`);
     return unwrapData(response);
   } catch (error) {
     throw error;
@@ -78,7 +78,7 @@ export const showPrayer = async (id: number): Promise<Prayer> => {
 
 export const deletePrayer = async (id: number): Promise<void> => {
   try {
-    await apiRequest<void>(`/prayers/${id}/delete`, {
+    await apiRequest<void>(`/users/prayers/${id}/delete`, {
       method: "DELETE",
     });
   } catch (error) {
